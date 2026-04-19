@@ -1,0 +1,39 @@
+# ========== .NET / API ==========
+api-dotnet/**/bin/
+api-dotnet/**/obj/
+api-dotnet/**/.vs/
+api-dotnet/**/wwwroot/lib/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ========== Python / Worker ==========
+worker-python/**/__pycache__/
+worker-python/**/*.pyc
+worker-python/**/.venv/
+worker-python/**/venv/
+worker-python/**/.pytest_cache/
+worker-python/**/.mypy_cache/
+
+# ========== Node.js / Frontend ==========
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ========== General ==========
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+*.tmp
+*.temp
