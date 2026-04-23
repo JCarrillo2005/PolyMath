@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using api_dotnet.Data;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,19 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+
+
+var redisConnectionString = builder.Configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = ConfigurationOptions.Parse(redisConnectionString);
+    configuration.AbortOnConnectFail = false; 
+    return ConnectionMultiplexer.Connect(configuration);
+});
+
+
 
 var app = builder.Build();
 

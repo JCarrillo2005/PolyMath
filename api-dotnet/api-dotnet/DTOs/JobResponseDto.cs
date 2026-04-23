@@ -1,11 +1,11 @@
 ﻿namespace api_dotnet.DTOs
 {
-    // DTOs/JobResponseDTO.cs (para GET /jobs/{id})
+    // DTOs/JobResponseDTO para GET /jobs/{id}
     public class JobResponseDTO
     {
-        public string JobId { get; set; }
-        public string Metodo { get; set; }
-        public string Estado { get; set; }
+        public string JobId { get; set; } = string.Empty;
+        public string Metodo { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
         public string? Resultado { get; set; }
         public bool? Converged { get; set; }
         public int? TiempoEjecucionMs { get; set; }
@@ -14,7 +14,7 @@
         public DateTime ActualizadoEn { get; set; }
     }
 
-    // DTOs/IteracionDTO.cs (para GET /jobs/{id}/iterations)
+    // para GET /jobs/{id}/iterations
     public class IteracionDTO
     {
         public int Iteracion { get; set; }
@@ -26,7 +26,7 @@
     // DTOs/CreateJobRequestDTO.cs (para POST /jobs)
     public class CreateJobRequestDTO
     {
-        public string Metodo { get; set; }
-        public Dictionary<string, object> Parametros { get; set; }
+        public string Metodo { get; set; } = string.Empty;
+        public Dictionary<string, object> Parametros { get; set; } = new();
     }
 }
