@@ -4,6 +4,11 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//  Puerto
+builder.WebHost.UseUrls("http://*:5000");
+
+
+
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -28,6 +33,13 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    context.Database.Migrate();  //  Aplicar migraciones de la base de datos al iniciar la aplicación.
+}
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
