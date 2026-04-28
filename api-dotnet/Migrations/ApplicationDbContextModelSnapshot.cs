@@ -81,7 +81,8 @@ namespace api_dotnet.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("Error")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 15)
+                        .HasColumnType("decimal(18,15)");
 
                     b.Property<int>("Iteracion")
                         .HasColumnType("int");

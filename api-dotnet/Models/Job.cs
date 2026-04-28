@@ -12,7 +12,7 @@ namespace api_dotnet.Models
         [Required]
         public string Metodo { get; set; } = string.Empty;
         [Required]
-        public string Estado { get; set; } = "PENDING"; // PENDING, RUNNING, DONE, FAILED
+        public string Estado { get; set; } = "PENDING"; 
 
         [Required]
         public string ParametrosJson { get; set; } = string.Empty; // string JSON con los parámetros del job.
