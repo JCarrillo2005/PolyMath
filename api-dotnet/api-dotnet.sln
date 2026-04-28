@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.37012.4 d17.14
+VisualStudioVersion = 17.14.37216.2 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "api-dotnet", "api-dotnet\api-dotnet.csproj", "{458EDA57-AD8C-48ED-95F1-F03BF19B0E9C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "api-dotnet", "api-dotnet.csproj", "{A16DC5E1-3325-B0BC-7438-DC1ED52AF4DC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{458EDA57-AD8C-48ED-95F1-F03BF19B0E9C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{458EDA57-AD8C-48ED-95F1-F03BF19B0E9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{458EDA57-AD8C-48ED-95F1-F03BF19B0E9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{458EDA57-AD8C-48ED-95F1-F03BF19B0E9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A16DC5E1-3325-B0BC-7438-DC1ED52AF4DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A16DC5E1-3325-B0BC-7438-DC1ED52AF4DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A16DC5E1-3325-B0BC-7438-DC1ED52AF4DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A16DC5E1-3325-B0BC-7438-DC1ED52AF4DC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {4DB8028B-E2AA-4EAC-BBF2-7D1A7C5E94A4}
+		SolutionGuid = {A7EF7E8D-0E8E-46C6-9F7B-A7BBAEF76684}
 	EndGlobalSection
 EndGlobal
