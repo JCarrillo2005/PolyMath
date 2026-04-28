@@ -18,6 +18,7 @@ namespace api_dotnet.Models
 
         public string? VectorX { get; set; }  // Para sistemas lineales (JSON)
 
+        [Column(TypeName = "decimal(18,15)")]
         public decimal? Error { get; set; }
 
         public string? DatosAdicionales { get; set; }  // JSON para datos específicos

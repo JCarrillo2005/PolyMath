@@ -23,6 +23,10 @@ namespace api_dotnet.Data
                 .WithMany()
                 .HasForeignKey(j => j.JobId)
                 .HasPrincipalKey(j => j.JobId);
+
+            modelBuilder.Entity<JobIteration>()
+                .Property(j => j.Error)
+                .HasPrecision(18, 15);
         }
     }
 }
