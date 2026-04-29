@@ -1,100 +1,103 @@
-import { useState } from 'react'
+import { useState } from 'react';
+import { createJob } from '../services/jobs.ts';
 
 function CreateJob() {
-  const [method, setMethod] = useState('')
-  const [formData, setFormData] = useState<any>({})
+  const [method, setMethod] = useState('');
+  const [formData, setFormData] = useState<any>({});
+  const [loading, setLoading] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
 
   const handleChange = (key: string, value: any) => {
     setFormData({
       ...formData,
       [key]: value
-    })
+    });
+  };
 
-    const handleSubmit = () => {
-  const data = { method, ...formData }
+  const handleSubmit = async () => {
+    if (!method) {
+      alert('Por favor seleccione un método antes de enviar el job');
+      return;
+    }
 
-  console.log('Enviando:', data)
+    setLoading(true);
 
-  setTimeout(() => {
-    console.log('Respuesta simulada:', {
-      id: 1,
-      status: 'processing',
-      result: null
-    })
-  }, 1000)
-}
-  }
+    try {
+      let parametros: any = {};
+
+      if (method === 'newton') {
+        parametros = {
+          funcion: formData.funcion,
+          x0: parseFloat(formData.x0),
+          tolerancia: 0.0001,
+          maxIteraciones: 100
+        };
+      }
+
+      const response = await createJob(method, parametros);
+      setJobId(response.jobId);
+      alert(`Job creado con ID: ${response.jobId}`);
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al crear el job');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="p-10 max-w-xl mx-auto">
-      
-      <h1 className="text-3xl font-bold mb-6">
-        Crear Nuevo Job 
-      </h1>
+      <h1 className="text-3xl font-bold mb-6">Crear Nuevo Job</h1>
 
-      {/* SELECT */}
       <select
         value={method}
         onChange={(e) => setMethod(e.target.value)}
         className="w-full border p-2 rounded mb-4"
       >
         <option value="">Seleccione un método</option>
-        <option value="bisection">Bisección</option>
         <option value="newton">Newton-Raphson</option>
+        <option value="secante">Secante</option>
+        <option value="muller">Müller</option>
+        <option value="gauss">Gauss</option>
+        <option value="gaussSeidel">Gauss-Seidel</option>
+        <option value="gaussJordan">Gauss-Jordan</option>
       </select>
 
-      {/* BISECTION */}
-      {method === 'bisection' && (
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Función f(x)"
-            onChange={(e) => handleChange('function', e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-          <input
-            type="number"
-            placeholder="a"
-            onChange={(e) => handleChange('a', e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-          <input
-            type="number"
-            placeholder="b"
-            onChange={(e) => handleChange('b', e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-        </div>
-      )}
-
-      {/* NEWTON */}
       {method === 'newton' && (
         <div className="space-y-3">
           <input
             type="text"
-            placeholder="Función f(x)"
-            onChange={(e) => handleChange('function', e.target.value)}
+            placeholder="Función f(x) ej: x^2 - 4"
+            onChange={(e) => handleChange('funcion', e.target.value)}
             className="w-full border p-2 rounded"
           />
           <input
             type="number"
-            placeholder="Valor inicial"
+            placeholder="x0 (valor inicial)"
             onChange={(e) => handleChange('x0', e.target.value)}
             className="w-full border p-2 rounded"
           />
         </div>
       )}
 
-      {/* BOTÓN */}
       <button
-        onClick={() => console.log({ method, ...formData })}
-        className="mt-6 bg-green-500 text-white px-4 py-2 rounded"
+        onClick={handleSubmit}
+        disabled={loading}
+        className="mt-6 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-gray-400"
       >
-        Enviar Job
+        {loading ? 'Creando...' : 'Enviar Job'}
       </button>
 
+      {jobId && (
+        <div className="mt-4 p-3 bg-blue-100 rounded">
+          <p> Job creado: <code>{jobId}</code></p>
+          <a href={`/job/${jobId}`} className="text-blue-600">
+            Ver estado →
+          </a>
+        </div>
+      )}
     </div>
-  )
+  );
 }
 
-export default CreateJob
+export default CreateJob;
