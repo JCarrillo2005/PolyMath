@@ -3,6 +3,9 @@ import time
 from redis_client import redis_client
 from db import get_db_connection
 from methods.newton import newton
+from methods.secante import secante
+from methods.muller import muller   
+
 
 def procesar_job(job_id: str):
     """
@@ -44,6 +47,25 @@ def procesar_job(job_id: str):
             resultado, iteraciones, converged = newton(
                 parametros.get('funcion'),
                 parametros.get('x0'),
+                parametros.get('tolerancia', 1e-6),
+                parametros.get('maxIteraciones', 100)
+            )
+        elif metodo == 'secante':
+            resultado, iteraciones, converged = secante
+            (
+                parametros.get('funcion'),
+                parametros.get('x0'),
+                parametros.get('x1'),
+                parametros.get('tolerancia', 1e-6),
+                parametros.get('maxIteraciones', 100)
+            )
+        elif metodo == 'muller':
+            resultado, iteraciones, converged = muller
+            (
+                parametros.get('funcion'),
+                parametros.get('x0'),
+                parametros.get('x1'),
+                parametros.get('x2'),
                 parametros.get('tolerancia', 1e-6),
                 parametros.get('maxIteraciones', 100)
             )
