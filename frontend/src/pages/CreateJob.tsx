@@ -1,13 +1,13 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { createJob } from "../services/jobs.ts";
 
-// Convierte la función ingresada por el usuario a una sintaxis compatible con el Worker de Python.
 function convertirFuncion(funcion: string): string {
   return funcion
-    .replace(/(\d)([a-zA-Z])/g, "$1*$2") // 4x → 4*x
-    .replace(/\^/g, "**") // x^2 → x**2
-    .replace(/sen\(/g, "sin(") // sen(x) → sin(x)
-    .replace(/ln\(/g, "log("); // ln(x) → log(x)
+    .replace(/(\d)([a-zA-Z])/g, "$1*$2")
+    .replace(/\^/g, "**")
+    .replace(/sen\(/g, "sin(")
+    .replace(/ln\(/g, "log(");
 }
 
 function CreateJob() {
@@ -15,6 +15,8 @@ function CreateJob() {
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
+
+  const navigate = useNavigate();
 
   const handleChange = (key: string, value: any) => {
     setFormData({
@@ -44,14 +46,10 @@ function CreateJob() {
       let parametros: any = {};
 
       if (method === "newton") {
-        if (!validarFuncion()) {
-          setLoading(false);
-          return;
-        }
+        if (!validarFuncion()) return;
 
         if (!formData.x0 || isNaN(parseFloat(formData.x0))) {
           alert("Ingrese un valor inicial x0 válido");
-          setLoading(false);
           return;
         }
 
@@ -64,10 +62,7 @@ function CreateJob() {
       }
 
       if (method === "secante") {
-        if (!validarFuncion()) {
-          setLoading(false);
-          return;
-        }
+        if (!validarFuncion()) return;
 
         if (
           !formData.x0 ||
@@ -76,7 +71,6 @@ function CreateJob() {
           isNaN(parseFloat(formData.x1))
         ) {
           alert("Ingrese valores válidos para x0 y x1");
-          setLoading(false);
           return;
         }
 
@@ -90,10 +84,7 @@ function CreateJob() {
       }
 
       if (method === "muller") {
-        if (!validarFuncion()) {
-          setLoading(false);
-          return;
-        }
+        if (!validarFuncion()) return;
 
         if (
           !formData.x0 ||
@@ -104,7 +95,6 @@ function CreateJob() {
           isNaN(parseFloat(formData.x2))
         ) {
           alert("Ingrese valores válidos para x0, x1 y x2");
-          setLoading(false);
           return;
         }
 
@@ -118,12 +108,26 @@ function CreateJob() {
         };
       }
 
+      if (!["newton", "secante", "muller"].includes(method)) {
+        alert("Este método todavía no tiene formulario configurado");
+        return;
+      }
+
       const response = await createJob(method, parametros);
+
       setJobId(response.jobId);
       alert(`Job creado con ID: ${response.jobId}`);
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Error al crear el job");
+
+      navigate(`/job/${response.jobId}`);
+    } catch (error: any) {
+      console.error("Error completo:", error);
+      console.error("Respuesta del backend:", error.response?.data);
+
+      alert(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Error al crear el job"
+      );
     } finally {
       setLoading(false);
     }
