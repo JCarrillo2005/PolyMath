@@ -4,18 +4,13 @@ from redis_client import redis_client
 from db import get_db_connection
 from methods.newton import newton
 from methods.secante import secante
-from methods.muller import muller   
-
+from methods.muller import muller
 
 def procesar_job(job_id: str):
-    """
-    Toma un jobId, procesa el método numérico y guarda resultados
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
-        # 1. Obtener el job de la base de datos
         cursor.execute(
             "SELECT Metodo, ParametrosJson FROM Jobs WHERE JobId = ? AND Estado = 'PENDING'",
             (job_id,)
@@ -29,7 +24,6 @@ def procesar_job(job_id: str):
         metodo, parametros_json = row
         parametros = json.loads(parametros_json)
         
-        # 2. Actualizar estado a RUNNING
         cursor.execute(
             "UPDATE Jobs SET Estado = 'RUNNING', ActualizadoEn = GETUTCDATE() WHERE JobId = ?",
             (job_id,)
@@ -37,7 +31,6 @@ def procesar_job(job_id: str):
         conn.commit()
         print(f"Job {job_id} - Estado: RUNNING")
         
-        # 3. Ejecutar el método numérico
         start_time = time.time()
         resultado = None
         iteraciones = []
@@ -51,8 +44,7 @@ def procesar_job(job_id: str):
                 parametros.get('maxIteraciones', 100)
             )
         elif metodo == 'secante':
-            resultado, iteraciones, converged = secante
-            (
+            resultado, iteraciones, converged = secante(
                 parametros.get('funcion'),
                 parametros.get('x0'),
                 parametros.get('x1'),
@@ -60,8 +52,7 @@ def procesar_job(job_id: str):
                 parametros.get('maxIteraciones', 100)
             )
         elif metodo == 'muller':
-            resultado, iteraciones, converged = muller
-            (
+            resultado, iteraciones, converged = muller(
                 parametros.get('funcion'),
                 parametros.get('x0'),
                 parametros.get('x1'),
@@ -72,14 +63,12 @@ def procesar_job(job_id: str):
         
         tiempo_ms = int((time.time() - start_time) * 1000)
         
-        # 4. Guardar iteraciones
         for it in iteraciones:
             cursor.execute("""
                 INSERT INTO JobIterations (JobId, Iteracion, Xi, Error)
                 VALUES (?, ?, ?, ?)
             """, job_id, it['iteracion'], str(it['xi']), it['error'])
         
-        # 5. Actualizar estado final
         estado_final = 'DONE' if converged else 'FAILED'
         cursor.execute("""
             UPDATE Jobs 
@@ -111,7 +100,6 @@ def main():
     
     while True:
         try:
-            # BLPOP: espera bloqueante hasta que llegue un job
             resultado = redis_client.blpop("job_queue", timeout=30)
             
             if resultado:
