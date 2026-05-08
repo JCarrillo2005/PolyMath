@@ -5,6 +5,10 @@ from db import get_db_connection
 from methods.newton import newton
 from methods.secante import secante
 from methods.muller import muller
+from methods.gauss import gauss
+from methods.gauss_jordan import gauss_jordan
+from methods.gauss_seidel import gauss_seidel
+
 
 def procesar_job(job_id: str):
     conn = get_db_connection()
@@ -57,6 +61,28 @@ def procesar_job(job_id: str):
                 parametros.get('x0'),
                 parametros.get('x1'),
                 parametros.get('x2'),
+                parametros.get('tolerancia', 1e-6),
+                parametros.get('maxIteraciones', 100)
+            )
+        elif metodo == 'gauss':
+            resultado, iteraciones, converged = gauss(
+                parametros.get('matriz'),
+                parametros.get('vector'),
+                parametros.get('tolerancia', 1e-6),
+                parametros.get('maxIteraciones', 100)
+            )
+        elif metodo == 'gauss_seidel':
+            resultado, iteraciones, converged = gauss_jordan(
+                parametros.get('matriz'),
+                parametros.get('vector'),
+                parametros.get('x0'),
+                parametros.get('tolerancia', 1e-6),
+                parametros.get('maxIteraciones', 100)
+            )
+        elif metodo == 'gauss_jordan':
+            resultado, iteraciones, converged = gauss_seidel(
+                parametros.get('matriz'),
+                parametros.get('vector'),
                 parametros.get('tolerancia', 1e-6),
                 parametros.get('maxIteraciones', 100)
             )
