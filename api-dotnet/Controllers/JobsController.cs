@@ -70,34 +70,92 @@ namespace api_dotnet.Controllers
 
 
         }
-        // GET api/jobId
+
+
+        // GET api/jobs/{jobId}
         [HttpGet("{jobId}")]
         public async Task<IActionResult> GetJob(string jobId)
         {
-            var job = await _context.Jobs
+            var jobEntity = await _context.Jobs
                 .Where(j => j.JobId == jobId)
-                .Select(j => new JobResponseDTO 
-                {
-                    JobId = j.JobId,
-                    Metodo = j.Metodo,
-                    Estado = j.Estado,
-                    Resultado = j.Resultado,
-                    Converged = j.Converged,
-                    TiempoEjecucionMs = j.TiempoEjecucionMs,
-                    ErrorMensaje = j.ErrorMensaje,
-                    CreadoEn = j.CreadoEn,
-                    ActualizadoEn = j.ActualizadoEn
-                })
                 .FirstOrDefaultAsync();
 
-            if (job == null)
+            if (jobEntity == null)
                 return NotFound(new { error = "Job no encontrado" });
 
-            return Ok(job);
+            var jobResponse = new JobResponseDTO
+            {
+                JobId = jobEntity.JobId,
+                Metodo = jobEntity.Metodo,
+                Estado = jobEntity.Estado,
+                Resultado = jobEntity.Resultado,
+                Converged = jobEntity.Converged,
+                TiempoEjecucionMs = jobEntity.TiempoEjecucionMs,
+                ErrorMensaje = jobEntity.ErrorMensaje,
+                CreadoEn = jobEntity.CreadoEn,
+                ActualizadoEn = jobEntity.ActualizadoEn,
+                ParametrosJson = jobEntity.ParametrosJson, 
+                Funcion = ExtraerFuncionDeParametros(jobEntity.ParametrosJson)
+            };
+
+            return Ok(jobResponse);
+        }
+
+        // GET api/jobs listar con filtros por estado y método
+        [HttpGet]
+        public async Task<IActionResult> GetJobs(
+            [FromQuery] string? estado,
+            [FromQuery] string? metodo)
+        {
+            var query = _context.Jobs.AsQueryable();
+
+            if (!string.IsNullOrEmpty(estado))
+                query = query.Where(j => j.Estado == estado);
+
+            if (!string.IsNullOrEmpty(metodo))
+                query = query.Where(j => j.Metodo == metodo);
+
+            var jobsEntities = await query
+                .OrderByDescending(j => j.CreadoEn)
+                .ToListAsync();
+
+            var jobsResponse = jobsEntities.Select(j => new JobResponseDTO
+            {
+                JobId = j.JobId,
+                Metodo = j.Metodo,
+                Estado = j.Estado,
+                Resultado = j.Resultado,
+                Converged = j.Converged,
+                TiempoEjecucionMs = j.TiempoEjecucionMs,
+                ErrorMensaje = j.ErrorMensaje,
+                CreadoEn = j.CreadoEn,
+                ActualizadoEn = j.ActualizadoEn,
+                ParametrosJson = j.ParametrosJson,  // ✅ AGREGAR
+                Funcion = ExtraerFuncionDeParametros(j.ParametrosJson)  // ✅ AGREGAR
+            }).ToList();
+
+            return Ok(jobsResponse);
+        }
+
+        // 📌 Método auxiliar para extraer la función del JSON
+        private string ExtraerFuncionDeParametros(string parametrosJson)
+        {
+            if (string.IsNullOrEmpty(parametrosJson))
+                return "f(x)";
+
+            try
+            {
+                var parametros = JsonSerializer.Deserialize<Dictionary<string, object>>(parametrosJson);
+                return parametros?.GetValueOrDefault("funcion")?.ToString() ?? "f(x)";
+            }
+            catch
+            {
+                return "f(x)";
+            }
         }
 
 
-        
+
         [HttpGet("{jobId}/iterations")]
         public async Task<IActionResult> GetIterations(string jobId)
         {
@@ -119,38 +177,8 @@ namespace api_dotnet.Controllers
             return Ok(iteraciones);
         }
 
-        // GET api/jobs listar con filtros por estado y método
-        [HttpGet]
-        public async Task<IActionResult> GetJobs(
-            [FromQuery] string? estado,
-            [FromQuery] string? metodo)
-        {
-            var query = _context.Jobs.AsQueryable();
-
-            if (!string.IsNullOrEmpty(estado))
-                query = query.Where(j => j.Estado == estado);
-
-            if (!string.IsNullOrEmpty(metodo))
-                query = query.Where(j => j.Metodo == metodo);
-
-            var jobs = await query
-                .OrderByDescending(j => j.CreadoEn)
-                .Select(j => new JobResponseDTO
-                {
-                    JobId = j.JobId,
-                    Metodo = j.Metodo,
-                    Estado = j.Estado,
-                    Resultado = j.Resultado,
-                    Converged = j.Converged,
-                    TiempoEjecucionMs = j.TiempoEjecucionMs,
-                    ErrorMensaje = j.ErrorMensaje,
-                    CreadoEn = j.CreadoEn,
-                    ActualizadoEn = j.ActualizadoEn
-                })
-                .ToListAsync();
-
-            return Ok(jobs);
-        }
+      
+        
 
     }
 

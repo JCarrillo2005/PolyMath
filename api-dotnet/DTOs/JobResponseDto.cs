@@ -12,6 +12,8 @@
         public string? ErrorMensaje { get; set; }
         public DateTime CreadoEn { get; set; }
         public DateTime ActualizadoEn { get; set; }
+        public string? ParametrosJson { get; set; }
+        public string? Funcion { get; set; }
     }
 
     // para GET /jobs/{id}/iterations
