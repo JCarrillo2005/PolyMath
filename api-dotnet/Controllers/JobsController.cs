@@ -67,8 +67,6 @@ namespace api_dotnet.Controllers
                 });
             }
 
-
-
         }
 
 
@@ -130,14 +128,14 @@ namespace api_dotnet.Controllers
                 ErrorMensaje = j.ErrorMensaje,
                 CreadoEn = j.CreadoEn,
                 ActualizadoEn = j.ActualizadoEn,
-                ParametrosJson = j.ParametrosJson,  // ✅ AGREGAR
-                Funcion = ExtraerFuncionDeParametros(j.ParametrosJson)  // ✅ AGREGAR
+                ParametrosJson = j.ParametrosJson, 
+                Funcion = ExtraerFuncionDeParametros(j.ParametrosJson) 
             }).ToList();
 
             return Ok(jobsResponse);
         }
 
-        // 📌 Método auxiliar para extraer la función del JSON
+        // Método para extraer la función del JSON
         private string ExtraerFuncionDeParametros(string parametrosJson)
         {
             if (string.IsNullOrEmpty(parametrosJson))
