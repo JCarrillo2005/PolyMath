@@ -3,11 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { createJob } from "../services/jobs.ts";
 
 function convertirFuncion(funcion: string): string {
-  return funcion
+  let converted = funcion
     .replace(/(\d)([a-zA-Z])/g, "$1*$2")
     .replace(/\^/g, "**")
     .replace(/sen\(/g, "sin(")
-    .replace(/ln\(/g, "log(");
+    .replace(/ln\(/g, "log(")
+    .replace(/pi/g, "pi");
+  converted = converted.replace(/e\*\*-([a-zA-Z0-9]+)/g, "exp(-$1)");
+  converted = converted.replace(/e\^-([a-zA-Z0-9]+)/g, "exp(-$1)");
+  converted = converted.replace(/e\^([a-zA-Z0-9\(\)]+)/g, "exp($1)");
+
+  return converted;
 }
 
 function CreateJob() {
@@ -15,7 +21,6 @@ function CreateJob() {
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
-
   const navigate = useNavigate();
 
   const handleChange = (key: string, value: any) => {
@@ -25,18 +30,55 @@ function CreateJob() {
     });
   };
 
+  // Función para insertar texto en el campo de función al hacer clic en los botones de ayuda.
+  const insertarEnFuncion = (texto: string) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      funcion: (prev.funcion || "") + texto,
+    }));
+  };
+
   const validarFuncion = () => {
     if (!formData.funcion || formData.funcion.trim() === "") {
       alert("Ingrese una función");
       return false;
     }
-
     return true;
+  };
+
+  // Validar que la función tenga paréntesis balanceados
+  const validarParentesis = (funcion: string): boolean => {
+    let balance = 0;
+    for (const char of funcion) {
+      if (char === "(") balance++;
+      if (char === ")") balance--;
+      if (balance < 0) return false;
+    }
+    return balance === 0;
   };
 
   const handleSubmit = async () => {
     if (!method) {
       alert("Por favor seleccione un método antes de enviar el job");
+      return;
+    }
+
+    if (!validarFuncion()) return;
+
+    const funcionOriginal = formData.funcion;
+
+    // Validar paréntesis
+    if (!validarParentesis(funcionOriginal)) {
+      alert("Error de Sintaxis: Revise la función.");
+      return;
+    }
+
+    // Validar que no haya caracteres inválidos
+    const caracteresInvalidos = /[^a-zA-Z0-9\+\-\*\/\(\)\^\s\.\,]/g;
+    if (caracteresInvalidos.test(funcionOriginal)) {
+      alert(
+        "Error de Sintaxis: La función contiene caracteres no permitidos. Use solo letras, números, operadores y paréntesis.",
+      );
       return;
     }
 
@@ -46,15 +88,13 @@ function CreateJob() {
       let parametros: any = {};
 
       if (method === "newton") {
-        if (!validarFuncion()) return;
-
         if (!formData.x0 || isNaN(parseFloat(formData.x0))) {
           alert("Ingrese un valor inicial x0 válido");
           return;
         }
 
         parametros = {
-          funcion: convertirFuncion(formData.funcion),
+          funcion: convertirFuncion(funcionOriginal),
           x0: parseFloat(formData.x0),
           tolerancia: 0.0001,
           maxIteraciones: 100,
@@ -62,8 +102,6 @@ function CreateJob() {
       }
 
       if (method === "secante") {
-        if (!validarFuncion()) return;
-
         if (
           !formData.x0 ||
           !formData.x1 ||
@@ -75,7 +113,7 @@ function CreateJob() {
         }
 
         parametros = {
-          funcion: convertirFuncion(formData.funcion),
+          funcion: convertirFuncion(funcionOriginal),
           x0: parseFloat(formData.x0),
           x1: parseFloat(formData.x1),
           tolerancia: 0.0001,
@@ -84,8 +122,6 @@ function CreateJob() {
       }
 
       if (method === "muller") {
-        if (!validarFuncion()) return;
-
         if (
           !formData.x0 ||
           !formData.x1 ||
@@ -99,7 +135,7 @@ function CreateJob() {
         }
 
         parametros = {
-          funcion: convertirFuncion(formData.funcion),
+          funcion: convertirFuncion(funcionOriginal),
           x0: parseFloat(formData.x0),
           x1: parseFloat(formData.x1),
           x2: parseFloat(formData.x2),
@@ -121,12 +157,10 @@ function CreateJob() {
       navigate(`/job/${response.jobId}`);
     } catch (error: any) {
       console.error("Error completo:", error);
-      console.error("Respuesta del backend:", error.response?.data);
-
       alert(
         error.response?.data?.error ||
           error.response?.data?.message ||
-          "Error al crear el job"
+          "Error al crear el job",
       );
     } finally {
       setLoading(false);
@@ -155,78 +189,100 @@ function CreateJob() {
         <option value="gaussJordan">Gauss-Jordan</option>
       </select>
 
-      {method === "newton" && (
+      {["newton", "secante", "muller"].includes(method) && (
         <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Función f(x) ej: x^2 - 4"
-            onChange={(e) => handleChange("funcion", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
+          <div>
+            <p className="text-sm text-gray-600 mb-1">Función f(x):</p>
 
-          <input
-            type="number"
-            placeholder="x0 (valor inicial)"
-            onChange={(e) => handleChange("x0", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-        </div>
-      )}
+            {/* BOTONES DE AYUDA */}
+            <div className="flex gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => insertarEnFuncion("exp(x)")}
+                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+              >
+                eˣ (exp(x))
+              </button>
+              <button
+                type="button"
+                onClick={() => insertarEnFuncion("pi")}
+                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+              >
+                π (pi)
+              </button>
+              <button
+                type="button"
+                onClick={() => insertarEnFuncion("sin(x)")}
+                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+              >
+                sin(x)
+              </button>
+              <button
+                type="button"
+                onClick={() => insertarEnFuncion("cos(x)")}
+                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+              >
+                cos(x)
+              </button>
+            </div>
 
-      {method === "secante" && (
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Función f(x) ej: x^2 - 4"
-            onChange={(e) => handleChange("funcion", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
+            <input
+              type="text"
+              placeholder="Ej: x**2 - 4  o  exp(x) - x  o  sin(x)"
+              value={formData.funcion || ""}
+              onChange={(e) => handleChange("funcion", e.target.value)}
+              className="w-full border p-2 rounded font-mono"
+            />
+          </div>
 
-          <input
-            type="number"
-            placeholder="x0"
-            onChange={(e) => handleChange("x0", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
+          {method === "newton" && (
+            <input
+              type="number"
+              placeholder="x0 (valor inicial)"
+              onChange={(e) => handleChange("x0", e.target.value)}
+              className="w-full border p-2 rounded"
+            />
+          )}
 
-          <input
-            type="number"
-            placeholder="x1"
-            onChange={(e) => handleChange("x1", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-        </div>
-      )}
+          {method === "secante" && (
+            <>
+              <input
+                type="number"
+                placeholder="x0"
+                onChange={(e) => handleChange("x0", e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+              <input
+                type="number"
+                placeholder="x1"
+                onChange={(e) => handleChange("x1", e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+            </>
+          )}
 
-      {method === "muller" && (
-        <div className="space-y-3">
-          <input
-            type="text"
-            placeholder="Función f(x) ej: x^3 - x - 2"
-            onChange={(e) => handleChange("funcion", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-
-          <input
-            type="number"
-            placeholder="x0"
-            onChange={(e) => handleChange("x0", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-
-          <input
-            type="number"
-            placeholder="x1"
-            onChange={(e) => handleChange("x1", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-
-          <input
-            type="number"
-            placeholder="x2"
-            onChange={(e) => handleChange("x2", e.target.value)}
-            className="w-full border p-2 rounded"
-          />
+          {method === "muller" && (
+            <>
+              <input
+                type="number"
+                placeholder="x0"
+                onChange={(e) => handleChange("x0", e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+              <input
+                type="number"
+                placeholder="x1"
+                onChange={(e) => handleChange("x1", e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+              <input
+                type="number"
+                placeholder="x2"
+                onChange={(e) => handleChange("x2", e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+            </>
+          )}
         </div>
       )}
 
