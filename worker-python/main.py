@@ -9,7 +9,6 @@ from methods.gauss import gauss
 from methods.gauss_jordan import gauss_jordan
 from methods.gauss_seidel import gauss_seidel
 
-
 def procesar_job(job_id: str):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -40,6 +39,7 @@ def procesar_job(job_id: str):
         iteraciones = []
         converged = False
         
+        # MÉTODOS DE RAÍCES
         if metodo == 'newton':
             resultado, iteraciones, converged = newton(
                 parametros.get('funcion'),
@@ -64,36 +64,40 @@ def procesar_job(job_id: str):
                 parametros.get('tolerancia', 1e-6),
                 parametros.get('maxIteraciones', 100)
             )
+        # MÉTODOS DE SISTEMAS LINEALES
         elif metodo == 'gauss':
-            resultado, iteraciones, converged = gauss(
-                parametros.get('matriz'),
-                parametros.get('vector'),
-                parametros.get('tolerancia', 1e-6),
-                parametros.get('maxIteraciones', 100)
+            resultado, iteraciones, converged = gauss(parametros)
+        elif metodo == 'gaussSeidel':
+            resultado, iteraciones, converged = gauss_seidel(parametros)
+        elif metodo == 'gaussJordan':
+            resultado, iteraciones, converged = gauss_jordan(parametros)
+        else:
+            print(f"Método desconocido: {metodo}")
+            cursor.execute(
+                "UPDATE Jobs SET Estado = 'FAILED', ErrorMensaje = ?, ActualizadoEn = GETUTCDATE() WHERE JobId = ?",
+                (f"Método no implementado: {metodo}", job_id)
             )
-        elif metodo == 'gauss_seidel':
-            resultado, iteraciones, converged = gauss_jordan(
-                parametros.get('matriz'),
-                parametros.get('vector'),
-                parametros.get('x0'),
-                parametros.get('tolerancia', 1e-6),
-                parametros.get('maxIteraciones', 100)
-            )
-        elif metodo == 'gauss_jordan':
-            resultado, iteraciones, converged = gauss_seidel(
-                parametros.get('matriz'),
-                parametros.get('vector'),
-                parametros.get('tolerancia', 1e-6),
-                parametros.get('maxIteraciones', 100)
-            )
+            conn.commit()
+            return
         
         tiempo_ms = int((time.time() - start_time) * 1000)
         
+        # GUARDAR ITERACIONES
         for it in iteraciones:
+            xi_value = it.get('xi')
+            vector_x_value = it.get('vector_x')
+            error_value = it.get('error')
+            datos_adicionales = it.get('datos_adicionales')
+            
             cursor.execute("""
-                INSERT INTO JobIterations (JobId, Iteracion, Xi, Error)
-                VALUES (?, ?, ?, ?)
-            """, job_id, it['iteracion'], str(it['xi']), it['error'])
+                INSERT INTO JobIterations (JobId, Iteracion, Xi, VectorX, Error, DatosAdicionales)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, job_id, it['iteracion'], 
+                str(xi_value) if xi_value is not None else None,
+                json.dumps(vector_x_value) if vector_x_value is not None else None,
+                error_value,
+                datos_adicionales
+            )
         
         estado_final = 'DONE' if converged else 'FAILED'
         cursor.execute("""
@@ -104,7 +108,8 @@ def procesar_job(job_id: str):
                 TiempoEjecucionMs = ?,
                 ActualizadoEn = GETUTCDATE()
             WHERE JobId = ?
-        """, estado_final, str(resultado), converged, tiempo_ms, job_id)
+        """, estado_final, str(resultado) if resultado is not None else None, 
+            converged, tiempo_ms, job_id)
         
         conn.commit()
         print(f"Job {job_id} - Estado: {estado_final} en {tiempo_ms}ms")
