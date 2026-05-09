@@ -173,10 +173,7 @@ namespace api_dotnet.Controllers
                 return NotFound(new { message = "No hay iteraciones para este job" });
 
             return Ok(iteraciones);
-        }
-
-      
-        
+        }    
 
     }
 

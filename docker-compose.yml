@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  # SQL Server----------------------------------------------------------
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: polymath_db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Change_Me_123!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Change_Me_123!" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # Redis----------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: polymath_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # API .NET----------------------------------------------------------
+  api-dotnet:
+    build: ./api-dotnet/
+    container_name: polymath_api
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Server=db;Database=PolyMathDB;User Id=sa;Password=Change_Me_123!;TrustServerCertificate=true
+      - ConnectionStrings__RedisConnection=redis:6379
+
+  # Worker Python----------------------------------------------------------
+  worker-python:
+    build: ./worker-python
+    container_name: polymath_worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_CONNECTION_STRING=Driver={ODBC Driver 17 for SQL Server};Server=db;Database=PolyMathDB;UID=sa;PWD=Change_Me_123!;TrustServerCertificate=yes
+
+  # Frontend React----------------------------------------------------------
+  frontend:
+    build: ./frontend
+    container_name: polymath_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api-dotnet
+    environment:
+      - VITE_API_URL=http://localhost:5000
+
+volumes:
+  sql_data:
