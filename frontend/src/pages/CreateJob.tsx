@@ -3,17 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { createJob } from "../services/jobs.ts";
 
 function convertirFuncion(funcion: string): string {
-  let converted = funcion
+  return funcion
     .replace(/(\d)([a-zA-Z])/g, "$1*$2")
     .replace(/\^/g, "**")
     .replace(/sen\(/g, "sin(")
-    .replace(/ln\(/g, "log(")
-    .replace(/pi/g, "pi");
-  converted = converted.replace(/e\*\*-([a-zA-Z0-9]+)/g, "exp(-$1)");
-  converted = converted.replace(/e\^-([a-zA-Z0-9]+)/g, "exp(-$1)");
-  converted = converted.replace(/e\^([a-zA-Z0-9\(\)]+)/g, "exp($1)");
+    .replace(/ln\(/g, "log(");
+}
 
-  return converted;
+function crearMatrizVacia(size: number) {
+  return Array.from({ length: size }, () => Array(size + 1).fill(""));
 }
 
 function CreateJob() {
@@ -21,6 +19,12 @@ function CreateJob() {
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
+
+  const [matrixSize, setMatrixSize] = useState(3);
+  const [matrixValues, setMatrixValues] = useState<string[][]>(
+    crearMatrizVacia(3)
+  );
+
   const navigate = useNavigate();
 
   const handleChange = (key: string, value: any) => {
@@ -30,12 +34,32 @@ function CreateJob() {
     });
   };
 
-  // Función para insertar texto en el campo de función al hacer clic en los botones de ayuda.
-  const insertarEnFuncion = (texto: string) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      funcion: (prev.funcion || "") + texto,
-    }));
+  const handleMatrixSizeChange = (size: number) => {
+    setMatrixSize(size);
+    setMatrixValues(crearMatrizVacia(size));
+  };
+
+  const handleMatrixChange = (row: number, col: number, value: string) => {
+    const nuevaMatriz = matrixValues.map((fila) => [...fila]);
+    nuevaMatriz[row][col] = value;
+    setMatrixValues(nuevaMatriz);
+  };
+
+  const convertirMatrizAString = () => {
+    return matrixValues.map((fila) => fila.join(",")).join(";");
+  };
+
+  const validarMatriz = () => {
+    for (const fila of matrixValues) {
+      for (const valor of fila) {
+        if (valor === "" || isNaN(parseFloat(valor))) {
+          alert("Complete todos los campos de la matriz con valores numéricos");
+          return false;
+        }
+      }
+    }
+
+    return true;
   };
 
   const validarFuncion = () => {
@@ -43,42 +67,13 @@ function CreateJob() {
       alert("Ingrese una función");
       return false;
     }
-    return true;
-  };
 
-  // Validar que la función tenga paréntesis balanceados
-  const validarParentesis = (funcion: string): boolean => {
-    let balance = 0;
-    for (const char of funcion) {
-      if (char === "(") balance++;
-      if (char === ")") balance--;
-      if (balance < 0) return false;
-    }
-    return balance === 0;
+    return true;
   };
 
   const handleSubmit = async () => {
     if (!method) {
       alert("Por favor seleccione un método antes de enviar el job");
-      return;
-    }
-
-    if (!validarFuncion()) return;
-
-    const funcionOriginal = formData.funcion;
-
-    // Validar paréntesis
-    if (!validarParentesis(funcionOriginal)) {
-      alert("Error de Sintaxis: Revise la función.");
-      return;
-    }
-
-    // Validar que no haya caracteres inválidos
-    const caracteresInvalidos = /[^a-zA-Z0-9\+\-\*\/\(\)\^\s\.\,]/g;
-    if (caracteresInvalidos.test(funcionOriginal)) {
-      alert(
-        "Error de Sintaxis: La función contiene caracteres no permitidos. Use solo letras, números, operadores y paréntesis.",
-      );
       return;
     }
 
@@ -88,13 +83,15 @@ function CreateJob() {
       let parametros: any = {};
 
       if (method === "newton") {
+        if (!validarFuncion()) return;
+
         if (!formData.x0 || isNaN(parseFloat(formData.x0))) {
           alert("Ingrese un valor inicial x0 válido");
           return;
         }
 
         parametros = {
-          funcion: convertirFuncion(funcionOriginal),
+          funcion: convertirFuncion(formData.funcion),
           x0: parseFloat(formData.x0),
           tolerancia: 0.0001,
           maxIteraciones: 100,
@@ -102,6 +99,8 @@ function CreateJob() {
       }
 
       if (method === "secante") {
+        if (!validarFuncion()) return;
+
         if (
           !formData.x0 ||
           !formData.x1 ||
@@ -113,7 +112,7 @@ function CreateJob() {
         }
 
         parametros = {
-          funcion: convertirFuncion(funcionOriginal),
+          funcion: convertirFuncion(formData.funcion),
           x0: parseFloat(formData.x0),
           x1: parseFloat(formData.x1),
           tolerancia: 0.0001,
@@ -122,6 +121,8 @@ function CreateJob() {
       }
 
       if (method === "muller") {
+        if (!validarFuncion()) return;
+
         if (
           !formData.x0 ||
           !formData.x1 ||
@@ -135,7 +136,7 @@ function CreateJob() {
         }
 
         parametros = {
-          funcion: convertirFuncion(funcionOriginal),
+          funcion: convertirFuncion(formData.funcion),
           x0: parseFloat(formData.x0),
           x1: parseFloat(formData.x1),
           x2: parseFloat(formData.x2),
@@ -144,9 +145,22 @@ function CreateJob() {
         };
       }
 
-      if (!["newton", "secante", "muller"].includes(method)) {
-        alert("Este método todavía no tiene formulario configurado");
-        return;
+      if (method === "gauss" || method === "gaussJordan") {
+        if (!validarMatriz()) return;
+
+        parametros = {
+          matrix: convertirMatrizAString(),
+        };
+      }
+
+      if (method === "gaussSeidel") {
+        if (!validarMatriz()) return;
+
+        parametros = {
+          matrix: convertirMatrizAString(),
+          tolerancia: 0.0001,
+          maxIteraciones: 100,
+        };
       }
 
       const response = await createJob(method, parametros);
@@ -157,18 +171,25 @@ function CreateJob() {
       navigate(`/job/${response.jobId}`);
     } catch (error: any) {
       console.error("Error completo:", error);
+      console.error("Respuesta del backend:", error.response?.data);
+
       alert(
         error.response?.data?.error ||
           error.response?.data?.message ||
-          "Error al crear el job",
+          "Error al crear el job"
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const esMetodoMatriz =
+    method === "gauss" || method === "gaussSeidel" || method === "gaussJordan";
+
+  const variables = matrixSize === 2 ? ["x", "y"] : ["x", "y", "z"];
+
   return (
-    <div className="p-10 max-w-xl mx-auto">
+    <div className="p-10 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Crear Nuevo Job</h1>
 
       <select
@@ -177,6 +198,7 @@ function CreateJob() {
           setMethod(e.target.value);
           setFormData({});
           setJobId(null);
+          handleMatrixSizeChange(3);
         }}
         className="w-full border p-2 rounded mb-4"
       >
@@ -189,100 +211,149 @@ function CreateJob() {
         <option value="gaussJordan">Gauss-Jordan</option>
       </select>
 
-      {["newton", "secante", "muller"].includes(method) && (
+      {method === "newton" && (
         <div className="space-y-3">
+          <input
+            type="text"
+            placeholder="Función f(x) ej: x^2 - 4"
+            onChange={(e) => handleChange("funcion", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="x0 (valor inicial)"
+            onChange={(e) => handleChange("x0", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+        </div>
+      )}
+
+      {method === "secante" && (
+        <div className="space-y-3">
+          <input
+            type="text"
+            placeholder="Función f(x) ej: x^2 - 4"
+            onChange={(e) => handleChange("funcion", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="x0"
+            onChange={(e) => handleChange("x0", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="x1"
+            onChange={(e) => handleChange("x1", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+        </div>
+      )}
+
+      {method === "muller" && (
+        <div className="space-y-3">
+          <input
+            type="text"
+            placeholder="Función f(x) ej: x^3 - x - 2"
+            onChange={(e) => handleChange("funcion", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="x0"
+            onChange={(e) => handleChange("x0", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="x1"
+            onChange={(e) => handleChange("x1", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="x2"
+            onChange={(e) => handleChange("x2", e.target.value)}
+            className="w-full border p-2 rounded"
+          />
+        </div>
+      )}
+
+      {esMetodoMatriz && (
+        <div className="space-y-5">
           <div>
-            <p className="text-sm text-gray-600 mb-1">Función f(x):</p>
+            <label className="block font-semibold mb-2">
+              Tamaño del sistema
+            </label>
 
-            {/* BOTONES DE AYUDA */}
-            <div className="flex gap-2 mb-2">
-              <button
-                type="button"
-                onClick={() => insertarEnFuncion("exp(x)")}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-              >
-                eˣ (exp(x))
-              </button>
-              <button
-                type="button"
-                onClick={() => insertarEnFuncion("pi")}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-              >
-                π (pi)
-              </button>
-              <button
-                type="button"
-                onClick={() => insertarEnFuncion("sin(x)")}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-              >
-                sin(x)
-              </button>
-              <button
-                type="button"
-                onClick={() => insertarEnFuncion("cos(x)")}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-              >
-                cos(x)
-              </button>
-            </div>
-
-            <input
-              type="text"
-              placeholder="Ej: x**2 - 4  o  exp(x) - x  o  sin(x)"
-              value={formData.funcion || ""}
-              onChange={(e) => handleChange("funcion", e.target.value)}
-              className="w-full border p-2 rounded font-mono"
-            />
+            <select
+              value={matrixSize}
+              onChange={(e) => handleMatrixSizeChange(Number(e.target.value))}
+              className="w-full border p-2 rounded"
+            >
+              <option value={2}>2x2</option>
+              <option value={3}>3x3</option>
+            </select>
           </div>
 
-          {method === "newton" && (
-            <input
-              type="number"
-              placeholder="x0 (valor inicial)"
-              onChange={(e) => handleChange("x0", e.target.value)}
-              className="w-full border p-2 rounded"
-            />
-          )}
+          <div className="bg-gray-100 p-5 rounded border">
+            <p className="font-semibold mb-4">Matriz aumentada</p>
 
-          {method === "secante" && (
-            <>
-              <input
-                type="number"
-                placeholder="x0"
-                onChange={(e) => handleChange("x0", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-              <input
-                type="number"
-                placeholder="x1"
-                onChange={(e) => handleChange("x1", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-            </>
-          )}
+            <div className="space-y-3">
+              {matrixValues.map((fila, rowIndex) => (
+                <div
+                  key={rowIndex}
+                  className="flex flex-wrap items-center gap-2"
+                >
+                  {variables.map((variable, colIndex) => (
+                    <div key={colIndex} className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={fila[colIndex]}
+                        onChange={(e) =>
+                          handleMatrixChange(
+                            rowIndex,
+                            colIndex,
+                            e.target.value
+                          )
+                        }
+                        className="w-20 border p-2 rounded text-center bg-white"
+                      />
 
-          {method === "muller" && (
-            <>
-              <input
-                type="number"
-                placeholder="x0"
-                onChange={(e) => handleChange("x0", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-              <input
-                type="number"
-                placeholder="x1"
-                onChange={(e) => handleChange("x1", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-              <input
-                type="number"
-                placeholder="x2"
-                onChange={(e) => handleChange("x2", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-            </>
-          )}
+                      <span className="font-semibold">{variable}</span>
+
+                      {colIndex < variables.length - 1 && (
+                        <span className="font-bold">+</span>
+                      )}
+                    </div>
+                  ))}
+
+                  <span className="font-bold mx-2">=</span>
+
+                  <input
+                    type="number"
+                    value={fila[matrixSize]}
+                    onChange={(e) =>
+                      handleMatrixChange(rowIndex, matrixSize, e.target.value)
+                    }
+                    className="w-20 border p-2 rounded text-center bg-white"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-3 rounded text-sm">
+            <p className="font-semibold">Formato que se enviará:</p>
+            <code>{convertirMatrizAString()}</code>
+          </div>
         </div>
       )}
 
