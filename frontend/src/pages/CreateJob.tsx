@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createJob } from "../services/jobs.ts";
 
+// Convierte la función ingresada por el usuario a una forma compatible con mathjs.
 function convertirFuncion(funcion: string): string {
   let converted = funcion
     .replace(/(\d)([a-zA-Z])/g, "$1*$2")

@@ -584,7 +584,7 @@ function JobDetail() {
           </>
         )}
 
-        {/* ==================== GAUSS-SEIDEL: TABLA ==================== */}
+        {/* ==================== GAUSS-SEIDEL: TABLA ===================== */}
         {esGaussSeidel && iterations.length > 0 && (
           <>
             <h2 className="text-xl font-bold mb-4 mt-8">
