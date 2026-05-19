@@ -90,12 +90,13 @@ def procesar_job(job_id: str):
             datos_adicionales = it.get('datos_adicionales')
             
             cursor.execute("""
-                INSERT INTO JobIterations (JobId, Iteracion, Xi, VectorX, Error, DatosAdicionales)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO JobIterations (JobId, Iteracion, Xi, VectorX, Error, ErroresIndividuales, DatosAdicionales)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """, job_id, it['iteracion'], 
                 str(xi_value) if xi_value is not None else None,
                 json.dumps(vector_x_value) if vector_x_value is not None else None,
                 error_value,
+                json.dumps(it.get('errores_individuales')) if it.get('errores_individuales') is not None else None,
                 datos_adicionales
             )
         
