@@ -4,27 +4,33 @@ import json
 def gauss(parametros: dict) -> tuple:
     """
     Resuelve sistema lineal Ax = b usando eliminación Gaussiana
-    Recibe parámetros desde el frontend vía API
+    Recibe matriz aumentada (última columna es el vector b)
     """
     try:
         matrix_str = parametros.get('matrix')
-        vector_str = parametros.get('vector')
         
-        if not matrix_str or not vector_str:
+        if not matrix_str:
+            print("Error: No se encontró 'matrix' en los parámetros")
             return None, [], False
         
-        A = np.array([list(map(float, row.split(','))) 
-                      for row in matrix_str.split(';')])
-        b = np.array([float(x) for x in vector_str.split(';')])
+        # Convertir la matriz aumentada completa
+        matriz_completa = np.array([list(map(float, row.split(','))) 
+                                     for row in matrix_str.split(';')])
+        
+        # Separar A (coeficientes) y b (términos independientes)
+        A = matriz_completa[:, :-1]
+        b = matriz_completa[:, -1]
         
         n = len(A)
         Ab = np.hstack([A, b.reshape(-1, 1)]).astype(float)
         iteraciones = []
         
+        # Eliminación hacia adelante
         for i in range(n):
             # Pivoteo parcial
             max_row = np.argmax(np.abs(Ab[i:, i])) + i
             if np.abs(Ab[max_row, i]) < 1e-12:
+                print(f"Matriz singular en pivote {i}")
                 return None, iteraciones, False
             
             if max_row != i:
@@ -53,6 +59,7 @@ def gauss(parametros: dict) -> tuple:
                     })
                 })
         
+        # Sustitución hacia atrás
         x = np.zeros(n)
         for i in range(n - 1, -1, -1):
             x[i] = (Ab[i, -1] - np.dot(Ab[i, i+1:n], x[i+1:n])) / Ab[i, i]
@@ -68,4 +75,6 @@ def gauss(parametros: dict) -> tuple:
         
     except Exception as e:
         print(f"Error en eliminación Gaussiana: {e}")
+        import traceback
+        traceback.print_exc()
         return None, [], False
