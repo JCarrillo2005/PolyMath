@@ -21,7 +21,7 @@ namespace api_dotnet.Migrations
                     Metodo = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Estado = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ParametrosJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ResultadoJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Resultado = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Converged = table.Column<bool>(type: "bit", nullable: true),
                     TiempoEjecucionMs = table.Column<int>(type: "int", nullable: true),
                     ErrorMensaje = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -44,7 +44,8 @@ namespace api_dotnet.Migrations
                     Iteracion = table.Column<int>(type: "int", nullable: false),
                     Xi = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     VectorX = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Error = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    Error = table.Column<decimal>(type: "decimal(18,15)", precision: 18, scale: 15, nullable: true),
+                    ErroresIndividuales = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     DatosAdicionales = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>

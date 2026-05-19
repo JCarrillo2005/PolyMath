@@ -12,7 +12,7 @@ using api_dotnet.Data;
 namespace api_dotnet.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260419231616_InitialCreate")]
+    [Migration("20260519014312_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -61,7 +61,7 @@ namespace api_dotnet.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("ResultadoJson")
+                    b.Property<string>("Resultado")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("TiempoEjecucionMs")
@@ -84,7 +84,11 @@ namespace api_dotnet.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("Error")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 15)
+                        .HasColumnType("decimal(18,15)");
+
+                    b.Property<string>("ErroresIndividuales")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Iteracion")
                         .HasColumnType("int");

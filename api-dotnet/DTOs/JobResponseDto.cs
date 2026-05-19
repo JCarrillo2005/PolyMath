@@ -20,8 +20,10 @@
     public class IteracionDTO
     {
         public int Iteracion { get; set; }
+        public string? VectorX { get; set; }
         public string? Xi { get; set; }
         public decimal? Error { get; set; }
+        public string? ErroresIndividuales { get; set; }
         public string? DatosAdicionales { get; set; }
     }
 

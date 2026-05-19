@@ -84,6 +84,9 @@ namespace api_dotnet.Migrations
                         .HasPrecision(18, 15)
                         .HasColumnType("decimal(18,15)");
 
+                    b.Property<string>("ErroresIndividuales")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("Iteracion")
                         .HasColumnType("int");
 

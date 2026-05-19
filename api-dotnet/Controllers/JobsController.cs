@@ -164,7 +164,9 @@ namespace api_dotnet.Controllers
                 {
                     Iteracion = i.Iteracion,
                     Xi = i.Xi,
+                    VectorX = i.VectorX,
                     Error = i.Error,
+                    ErroresIndividuales = i.ErroresIndividuales,
                     DatosAdicionales = i.DatosAdicionales
                 })
                 .ToListAsync();

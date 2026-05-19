@@ -20,6 +20,7 @@ namespace api_dotnet.Models
 
         [Column(TypeName = "decimal(18,15)")]
         public decimal? Error { get; set; }
+        public string? ErroresIndividuales { get; set; }  // Para Métodos de sistemas lineales (Gauss Seidel)
 
         public string? DatosAdicionales { get; set; }  // JSON para datos específicos
 
