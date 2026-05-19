@@ -35,7 +35,7 @@ function CreateJob() {
   const matrixSize = 3;
 
   const [matrixValues, setMatrixValues] = useState<string[][]>(
-    crearMatrizVacia(3)
+    crearMatrizVacia(3),
   );
 
   const navigate = useNavigate();
@@ -54,11 +54,7 @@ function CreateJob() {
     }));
   };
 
-  const handleMatrixChange = (
-    row: number,
-    col: number,
-    value: string
-  ) => {
+  const handleMatrixChange = (row: number, col: number, value: string) => {
     const nuevaMatriz = matrixValues.map((fila) => [...fila]);
 
     nuevaMatriz[row][col] = value;
@@ -74,9 +70,7 @@ function CreateJob() {
     for (const fila of matrixValues) {
       for (const valor of fila) {
         if (valor === "" || isNaN(parseFloat(valor))) {
-          alert(
-            "Complete todos los campos de la matriz con valores numéricos"
-          );
+          alert("Complete todos los campos de la matriz con valores numéricos");
 
           return false;
         }
@@ -129,12 +123,11 @@ function CreateJob() {
         return;
       }
 
-      const caracteresInvalidos =
-        /[^a-zA-Z0-9\+\-\*\/\(\)\^\s\.\,]/g;
+      const caracteresInvalidos = /[^a-zA-Z0-9\+\-\*\/\(\)\^\s\.\,]/g;
 
       if (caracteresInvalidos.test(funcionOriginal)) {
         alert(
-          "Error de Sintaxis: La función contiene caracteres no permitidos."
+          "Error de Sintaxis: La función contiene caracteres no permitidos.",
         );
 
         return;
@@ -154,9 +147,7 @@ function CreateJob() {
 
           tolerancia: parseFloat(formData.tolerancia),
 
-          maxIteraciones: parseInt(
-            formData.maxIteraciones
-          ),
+          maxIteraciones: parseInt(formData.maxIteraciones),
         };
       }
 
@@ -169,13 +160,9 @@ function CreateJob() {
 
           x1: parseFloat(formData.x1),
 
-          tolerancia: parseFloat(
-            formData.tolerancia
-          ),
+          tolerancia: parseFloat(formData.tolerancia),
 
-          maxIteraciones: parseInt(
-            formData.maxIteraciones
-          ),
+          maxIteraciones: parseInt(formData.maxIteraciones),
         };
       }
 
@@ -190,13 +177,9 @@ function CreateJob() {
 
           x2: parseFloat(formData.x2),
 
-          tolerancia: parseFloat(
-            formData.tolerancia
-          ),
+          tolerancia: parseFloat(formData.tolerancia),
 
-          maxIteraciones: parseInt(
-            formData.maxIteraciones
-          ),
+          maxIteraciones: parseInt(formData.maxIteraciones),
         };
       }
 
@@ -216,13 +199,9 @@ function CreateJob() {
         parametros = {
           matrix: convertirMatrizAString(),
 
-          tolerancia: parseFloat(
-            formData.tolerancia
-          ),
+          tolerancia: parseFloat(formData.tolerancia),
 
-          maxIteraciones: parseInt(
-            formData.maxIteraciones
-          ),
+          maxIteraciones: parseInt(formData.maxIteraciones),
         };
       }
 
@@ -235,10 +214,7 @@ function CreateJob() {
         };
       }
 
-      const response = await createJob(
-        method,
-        parametros
-      );
+      const response = await createJob(method, parametros);
 
       setJobId(response.jobId);
 
@@ -251,26 +227,22 @@ function CreateJob() {
       alert(
         error.response?.data?.error ||
           error.response?.data?.message ||
-          "Error al crear el job"
+          "Error al crear el job",
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const esMetodoMatriz = [
-    "gauss",
-    "gaussSeidel",
-    "gaussJordan",
-  ].includes(method);
+  const esMetodoMatriz = ["gauss", "gaussSeidel", "gaussJordan"].includes(
+    method,
+  );
 
   const variables = ["x", "y", "z"];
 
   return (
     <div className="p-10 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">
-        Crear Nuevo Job
-      </h1>
+      <h1 className="text-3xl font-bold mb-6">Crear Nuevo Job</h1>
 
       <select
         value={method}
@@ -286,51 +258,31 @@ function CreateJob() {
         }}
         className="w-full border p-2 rounded mb-4"
       >
-        <option value="">
-          Seleccione un método
-        </option>
+        <option value="">Seleccione un método</option>
 
-        <option value="newton">
-          Newton-Raphson
-        </option>
+        <option value="newton">Newton-Raphson</option>
 
-        <option value="secante">
-          Secante
-        </option>
+        <option value="secante">Secante</option>
 
-        <option value="muller">
-          Müller
-        </option>
+        <option value="muller">Müller</option>
 
-        <option value="gauss">
-          Gauss
-        </option>
+        <option value="gauss">Gauss</option>
 
-        <option value="gaussSeidel">
-          Gauss-Seidel
-        </option>
+        <option value="gaussSeidel">Gauss-Seidel</option>
 
-        <option value="gaussJordan">
-          Gauss-Jordan
-        </option>
+        <option value="gaussJordan">Gauss-Jordan</option>
       </select>
 
       {/* MÉTODOS DE RAÍCES */}
       {["newton", "secante", "muller"].includes(method) && (
         <div className="space-y-3">
-
           <div>
-            <p className="text-sm text-gray-600 mb-1">
-              Función f(x):
-            </p>
+            <p className="text-sm text-gray-600 mb-1">Función f(x):</p>
 
             <div className="flex gap-2 mb-2 flex-wrap">
-
               <button
                 type="button"
-                onClick={() =>
-                  insertarEnFuncion("exp(x)")
-                }
+                onClick={() => insertarEnFuncion("exp(x)")}
                 className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
               >
                 eˣ
@@ -338,9 +290,7 @@ function CreateJob() {
 
               <button
                 type="button"
-                onClick={() =>
-                  insertarEnFuncion("pi")
-                }
+                onClick={() => insertarEnFuncion("pi")}
                 className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
               >
                 π
@@ -348,9 +298,7 @@ function CreateJob() {
 
               <button
                 type="button"
-                onClick={() =>
-                  insertarEnFuncion("sin(x)")
-                }
+                onClick={() => insertarEnFuncion("sin(x)")}
                 className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
               >
                 sin(x)
@@ -358,26 +306,18 @@ function CreateJob() {
 
               <button
                 type="button"
-                onClick={() =>
-                  insertarEnFuncion("cos(x)")
-                }
+                onClick={() => insertarEnFuncion("cos(x)")}
                 className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
               >
                 cos(x)
               </button>
-
             </div>
 
             <input
               type="text"
               value={formData.funcion || ""}
               placeholder="Ej: x^2 - 4"
-              onChange={(e) =>
-                handleChange(
-                  "funcion",
-                  e.target.value
-                )
-              }
+              onChange={(e) => handleChange("funcion", e.target.value)}
               className="w-full border p-2 rounded font-mono"
             />
           </div>
@@ -386,12 +326,7 @@ function CreateJob() {
             <input
               type="number"
               placeholder="x0"
-              onChange={(e) =>
-                handleChange(
-                  "x0",
-                  e.target.value
-                )
-              }
+              onChange={(e) => handleChange("x0", e.target.value)}
               className="w-full border p-2 rounded"
             />
           )}
@@ -401,24 +336,14 @@ function CreateJob() {
               <input
                 type="number"
                 placeholder="x0"
-                onChange={(e) =>
-                  handleChange(
-                    "x0",
-                    e.target.value
-                  )
-                }
+                onChange={(e) => handleChange("x0", e.target.value)}
                 className="w-full border p-2 rounded"
               />
 
               <input
                 type="number"
                 placeholder="x1"
-                onChange={(e) =>
-                  handleChange(
-                    "x1",
-                    e.target.value
-                  )
-                }
+                onChange={(e) => handleChange("x1", e.target.value)}
                 className="w-full border p-2 rounded"
               />
             </>
@@ -429,36 +354,21 @@ function CreateJob() {
               <input
                 type="number"
                 placeholder="x0"
-                onChange={(e) =>
-                  handleChange(
-                    "x0",
-                    e.target.value
-                  )
-                }
+                onChange={(e) => handleChange("x0", e.target.value)}
                 className="w-full border p-2 rounded"
               />
 
               <input
                 type="number"
                 placeholder="x1"
-                onChange={(e) =>
-                  handleChange(
-                    "x1",
-                    e.target.value
-                  )
-                }
+                onChange={(e) => handleChange("x1", e.target.value)}
                 className="w-full border p-2 rounded"
               />
 
               <input
                 type="number"
                 placeholder="x2"
-                onChange={(e) =>
-                  handleChange(
-                    "x2",
-                    e.target.value
-                  )
-                }
+                onChange={(e) => handleChange("x2", e.target.value)}
                 className="w-full border p-2 rounded"
               />
             </>
@@ -467,31 +377,16 @@ function CreateJob() {
       )}
 
       {/* TOLERANCIA E ITERACIONES */}
-      {[
-        "newton",
-        "secante",
-        "muller",
-        "gaussSeidel",
-      ].includes(method) && (
+      {["newton", "secante", "muller", "gaussSeidel"].includes(method) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Tolerancia
-            </label>
+            <label className="block text-sm font-medium mb-1">Tolerancia</label>
 
             <input
               type="number"
               step="0.000001"
-              value={
-                formData.tolerancia || ""
-              }
-              onChange={(e) =>
-                handleChange(
-                  "tolerancia",
-                  e.target.value
-                )
-              }
+              value={formData.tolerancia || ""}
+              onChange={(e) => handleChange("tolerancia", e.target.value)}
               className="w-full border p-2 rounded"
             />
           </div>
@@ -503,102 +398,55 @@ function CreateJob() {
 
             <input
               type="number"
-              value={
-                formData.maxIteraciones || ""
-              }
-              onChange={(e) =>
-                handleChange(
-                  "maxIteraciones",
-                  e.target.value
-                )
-              }
+              value={formData.maxIteraciones || ""}
+              onChange={(e) => handleChange("maxIteraciones", e.target.value)}
               className="w-full border p-2 rounded"
             />
           </div>
-
         </div>
       )}
 
       {/* MATRICES */}
       {esMetodoMatriz && (
         <div className="space-y-5 mt-5">
-
           <div className="bg-gray-100 p-5 rounded border">
-
-            <p className="font-semibold mb-4">
-              Matriz aumentada 3x3
-            </p>
+            <p className="font-semibold mb-4">Matriz aumentada 3x3</p>
 
             <div className="space-y-3">
+              {matrixValues.map((fila, rowIndex) => (
+                <div
+                  key={rowIndex}
+                  className="flex flex-wrap items-center gap-2"
+                >
+                  {variables.map((variable, colIndex) => (
+                    <div key={colIndex} className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={fila[colIndex]}
+                        onChange={(e) =>
+                          handleMatrixChange(rowIndex, colIndex, e.target.value)
+                        }
+                        className="w-20 border p-2 rounded text-center bg-white"
+                      />
 
-              {matrixValues.map(
-                (fila, rowIndex) => (
-                  <div
-                    key={rowIndex}
-                    className="flex flex-wrap items-center gap-2"
-                  >
+                      <span>{variable}</span>
 
-                    {variables.map(
-                      (
-                        variable,
-                        colIndex
-                      ) => (
-                        <div
-                          key={colIndex}
-                          className="flex items-center gap-2"
-                        >
+                      {colIndex < variables.length - 1 && <span>+</span>}
+                    </div>
+                  ))}
 
-                          <input
-                            type="number"
-                            value={
-                              fila[colIndex]
-                            }
-                            onChange={(e) =>
-                              handleMatrixChange(
-                                rowIndex,
-                                colIndex,
-                                e.target.value
-                              )
-                            }
-                            className="w-20 border p-2 rounded text-center bg-white"
-                          />
+                  <span>=</span>
 
-                          <span>
-                            {variable}
-                          </span>
-
-                          {colIndex <
-                            variables.length -
-                              1 && (
-                            <span>
-                              +
-                            </span>
-                          )}
-                        </div>
-                      )
-                    )}
-
-                    <span>=</span>
-
-                    <input
-                      type="number"
-                      value={
-                        fila[matrixSize]
-                      }
-                      onChange={(e) =>
-                        handleMatrixChange(
-                          rowIndex,
-                          matrixSize,
-                          e.target.value
-                        )
-                      }
-                      className="w-20 border p-2 rounded text-center bg-white"
-                    />
-
-                  </div>
-                )
-              )}
-
+                  <input
+                    type="number"
+                    value={fila[matrixSize]}
+                    onChange={(e) =>
+                      handleMatrixChange(rowIndex, matrixSize, e.target.value)
+                    }
+                    className="w-20 border p-2 rounded text-center bg-white"
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -609,16 +457,13 @@ function CreateJob() {
         disabled={loading}
         className="mt-6 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-gray-400"
       >
-        {loading
-          ? "Creando..."
-          : "Enviar Job"}
+        {loading ? "Creando..." : "Enviar Job"}
       </button>
 
       {jobId && (
         <div className="mt-4 p-3 bg-blue-100 rounded">
           <p>
-            Job creado:{" "}
-            <code>{jobId}</code>
+            Job creado: <code>{jobId}</code>
           </p>
         </div>
       )}
