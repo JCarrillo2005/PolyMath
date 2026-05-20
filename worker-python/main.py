@@ -128,12 +128,16 @@ def procesar_job(job_id: str):
                     datos_adicionales
                 )
         
-        # Determinar estado final
+        # Determinar estado final - CORREGIDO
         if error_mensaje:
+            # Si hay mensaje de error, es FAILED
             estado_final = 'FAILED'
         else:
-            estado_final = 'DONE' if converged else 'FAILED'
-            if not converged and not error_mensaje:
+            # Si no hay error, depende de converged
+            if converged:
+                estado_final = 'DONE'
+            else:
+                estado_final = 'FAILED'
                 error_mensaje = f"Máximo de iteraciones alcanzado ({parametros.get('maxIteraciones', 100)})"
         
         # ACTUALIZAR JOB CON ERROR MENSAJE
@@ -188,5 +192,5 @@ def main():
             time.sleep(5)
 
 if __name__ == "__main__":
-    import numpy as np  # Agregado para capturar LinAlgError
+    import numpy as np
     main()
