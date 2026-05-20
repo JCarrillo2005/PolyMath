@@ -14,6 +14,29 @@ def procesar_job(job_id: str):
     cursor = conn.cursor()
     
     try:
+        # IDEMPOTENCIA: Verificar que el job no esté ya DONE o RUNNING
+        cursor.execute(
+            "SELECT Estado FROM Jobs WHERE JobId = ?",
+            (job_id,)
+        )
+        row = cursor.fetchone()
+        
+        if not row:
+            print(f"Job {job_id} no encontrado")
+            return
+        
+        estado_actual = row[0]
+        
+        # Si ya está DONE o RUNNING, no re-ejecutar
+        if estado_actual in ('DONE', 'RUNNING'):
+            print(f"Job {job_id} ya está {estado_actual}. Ignorando por idempotencia.")
+            return
+        
+        # Solo procesar si está PENDING
+        if estado_actual != 'PENDING':
+            print(f"Job {job_id} tiene estado {estado_actual}. No se procesa.")
+            return
+        
         cursor.execute(
             "SELECT Metodo, ParametrosJson FROM Jobs WHERE JobId = ? AND Estado = 'PENDING'",
             (job_id,)
@@ -84,32 +107,32 @@ def procesar_job(job_id: str):
                 return
                 
         except ZeroDivisionError as e:
-            # Captura división por cero (Newton-Raphson, Secante)
+            # División por cero (Newton, Secante)
             error_mensaje = f"División por cero — job FAILED: {str(e)}"
             converged = False
             print(error_mensaje)
             
         except ValueError as e:
-            # Captura error de parsing (expresión inválida)
+            # Error de parsing (expresión inválida)
             error_mensaje = f"Error de parsing: {str(e)}"
             converged = False
             print(error_mensaje)
             
         except np.linalg.LinAlgError as e:
-            # Captura matriz singular (Gauss, Gauss-Jordan)
+            # Matriz singular (Gauss, Gauss-Jordan)
             error_mensaje = f"Matriz singular — job FAILED: {str(e)}"
             converged = False
             print(error_mensaje)
             
         except Exception as e:
-            # Captura cualquier otro error (diagonal con ceros, etc.)
+            # Otros errores (diagonal con ceros, etc.)
             error_mensaje = f"Error en {metodo}: {str(e)}"
             converged = False
             print(error_mensaje)
         
         tiempo_ms = int((time.time() - start_time) * 1000)
         
-        # GUARDAR ITERACIONES (solo si hay iteraciones)
+        # GUARDAR ITERACIONES
         if iteraciones:
             for it in iteraciones:
                 xi_value = it.get('xi')
@@ -128,19 +151,18 @@ def procesar_job(job_id: str):
                     datos_adicionales
                 )
         
-        # Determinar estado final - CORREGIDO
+        # DETERMINAR ESTADO FINAL SEGÚN ESPECIFICACIÓN
         if error_mensaje:
-            # Si hay mensaje de error, es FAILED
+            # Expresión inválida, división por cero, matriz singular, diagonal con ceros → FAILED
             estado_final = 'FAILED'
         else:
-            # Si no hay error, depende de converged
-            if converged:
-                estado_final = 'DONE'
-            else:
-                estado_final = 'FAILED'
-                error_mensaje = f"Máximo de iteraciones alcanzado ({parametros.get('maxIteraciones', 100)})"
+            # maxIter alcanzado o convergió correctamente → DONE
+            estado_final = 'DONE'
+            # Si no convergió y no hay error, fue por maxIter alcanzado
+            if not converged:
+                print(f"Job {job_id} - Advertencia: Máximo de iteraciones alcanzado ({parametros.get('maxIteraciones', 100)})")
         
-        # ACTUALIZAR JOB CON ERROR MENSAJE
+        # ACTUALIZAR JOB
         cursor.execute("""
             UPDATE Jobs 
             SET Estado = ?, 
@@ -154,7 +176,7 @@ def procesar_job(job_id: str):
             converged, tiempo_ms, error_mensaje, job_id)
         
         conn.commit()
-        print(f"Job {job_id} - Estado: {estado_final} en {tiempo_ms}ms")
+        print(f"Job {job_id} - Estado: {estado_final} | Converged: {converged} en {tiempo_ms}ms")
         if error_mensaje:
             print(f"Job {job_id} - Error: {error_mensaje}")
         
