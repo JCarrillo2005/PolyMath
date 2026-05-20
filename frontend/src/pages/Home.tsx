@@ -314,7 +314,7 @@ function Home() {
 
                         <Link
                           to={`/job/${job.jobId}`}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap inline-block"
                         >
                           Ver detalle
                         </Link>

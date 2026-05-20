@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getJob, getIterations } from "../services/jobs";
 import "katex/dist/katex.min.css";
 import { BlockMath } from "react-katex";
@@ -201,6 +201,8 @@ const RaicesTooltip = ({ active, payload }: any) => {
 };
 
 function JobDetail() {
+  const navigate = useNavigate();
+
   const { jobId } = useParams();
   const [job, setJob] = useState<any>(null);
   const [iterations, setIterations] = useState<any[]>([]);
@@ -215,19 +217,24 @@ function JobDetail() {
 
         if (jobData.estado === "DONE") {
           const iterationData = await getIterations(jobId);
-          const fixedIterations = iterationData.map((item, index) => ({
-            ...item,
-            iteracion: index + 1,
-          }));
+
+          const fixedIterations = iterationData.map(
+            (item, index) => ({
+              ...item,
+              iteracion: index + 1,
+            })
+          );
+
           setIterations(fixedIterations);
+
         } else {
           setIterations([]);
         }
+
       } catch (error) {
         console.error("Error cargando job:", error);
       }
     };
-
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
@@ -274,9 +281,17 @@ function JobDetail() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="border-2 border-dashed border-gray-500 rounded-lg p-6">
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          Resultado del método {job.metodo}
-        </h1>
+        <div className="flex justify-between items-center mb-6">
+
+  <h1 className="text-2xl font-bold">
+    Resultado del método {job.metodo}
+  </h1>
+  <button
+    onClick={() => navigate("/")}
+    className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-medium transition">
+    Volver
+  </button>
+</div>
 
         {/* INFORMACIÓN GENERAL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-gray-50 p-4 rounded-lg">
