@@ -294,56 +294,59 @@ function JobDetail() {
 </div>
 
         {/* INFORMACIÓN GENERAL */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-gray-50 p-4 rounded-lg">
-          <div>
-            <p className="text-sm text-gray-500">Estado</p>
-            <p
-              className={`font-bold text-lg ${
-                job.estado === "DONE"
-                  ? "text-green-600"
-                  : job.estado === "FAILED"
-                    ? "text-red-600"
-                    : job.estado === "RUNNING"
-                      ? "text-blue-600"
-                      : "text-yellow-600"
-              }`}
-            >
-              {job.estado}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Tiempo</p>
-            <p className="font-bold text-lg">{job.tiempoEjecucionMs ?? 0} ms</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Convergió</p>
-            <p className="font-bold text-lg">
-              {job.converged
-                ? "Sí"
-                : job.estado === "DONE"
-                  ? "No"
-                  : "Pendiente"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Resultado final</p>
-            <p className="font-mono text-lg break-all">
-              {job.resultado || "-"}
-            </p>
-          </div>
-        </div>
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-gray-50 p-4 rounded-lg">
+  <div>
+    <p className="text-sm text-gray-500">Estado</p>
+    <p
+      className={`font-bold text-lg ${
+        job.estado === "DONE"
+          ? "text-green-600"
+          : job.estado === "FAILED"
+            ? "text-red-600"
+            : job.estado === "RUNNING"
+              ? "text-blue-600"
+              : "text-yellow-600"
+      }`}
+    >
+      {job.estado}
+    </p>
+  </div>
 
-        {/* SISTEMA DE ECUACIONES (para métodos lineales) */}
-        {esMetodoLineal && (
-          <div className="mb-8">
-            <p className="font-bold mb-2">Sistema de ecuaciones:</p>
-            <div className="bg-gray-100 p-4 rounded-lg text-center overflow-x-auto">
-              <BlockMath
-                math={convertirMatrizAEcuaciones(job.parametrosJson)}
-              />
-            </div>
-          </div>
-        )}
+  <div>
+    <p className="text-sm text-gray-500">Tiempo</p>
+    <p className="font-bold text-lg">
+      {job.tiempoEjecucionMs ?? 0} ms
+    </p>
+  </div>
+
+  <div>
+    <p className="text-sm text-gray-500">Convergió</p>
+    <p className="font-bold text-lg">
+      {job.converged
+        ? "Sí"
+        : job.estado === "DONE"
+          ? "No"
+          : "Pendiente"}
+    </p>
+  </div>
+
+  <div>
+    <p className="text-sm text-gray-500">Resultado final</p>
+    <p className="font-mono text-lg break-all">
+      {job.resultado || "-"}
+    </p>
+  </div>
+
+  {/* MENSAJE DE ERROR */}
+  {job.estado === "FAILED" && job.errorMensaje && (
+    <div className="md:col-span-2 bg-red-100 border border-red-400 text-red-700 p-4 rounded-lg">
+      <p className="font-bold mb-1">Error del método:</p>
+      <p className="font-mono break-all">
+        {job.errorMensaje}
+      </p>
+    </div>
+  )}
+</div>
 
         {/* SOLUCIÓN FINAL (para métodos lineales) */}
         {esMetodoLineal && vectorSolucion && (
