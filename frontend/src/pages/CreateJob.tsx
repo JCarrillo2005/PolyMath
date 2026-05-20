@@ -243,7 +243,17 @@ function CreateJob() {
 
   return (
     <div className="p-10 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Crear Nuevo Job</h1>
+      <div className="flex justify-between items-center mb-6">
+
+  <h1 className="text-3xl font-bold">
+    Crear Nuevo Job
+  </h1>
+  <button
+    onClick={() => navigate("/")}
+    className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-medium transition">
+    Volver
+  </button>
+</div>
 
       <select
         value={method}

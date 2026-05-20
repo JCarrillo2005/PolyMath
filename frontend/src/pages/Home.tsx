@@ -4,7 +4,13 @@ import { getAllJobs } from "../services/jobs";
 
 function Home() {
   const [jobs, setJobs] = useState<any[]>([]);
+  const [jobsFiltrados, setJobsFiltrados] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [metodoFiltro, setMetodoFiltro] = useState("Todos");
+  const [estadoFiltro, setEstadoFiltro] = useState("Todos");
+  const [convergenciaFiltro, setConvergenciaFiltro] =
+    useState("Todos");
 
   useEffect(() => {
     cargarJobs();
@@ -13,12 +19,46 @@ function Home() {
   const cargarJobs = async () => {
     try {
       const data = await getAllJobs();
+
       setJobs(data);
+      setJobsFiltrados(data);
     } catch (error) {
       console.error("Error cargando jobs:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const aplicarFiltros = () => {
+    let filtrados = [...jobs];
+
+    filtrados = filtrados.filter((job) => {
+      return (
+        (metodoFiltro === "Todos" ||
+          job.metodo === metodoFiltro) &&
+
+        (estadoFiltro === "Todos" ||
+          job.estado === estadoFiltro) &&
+
+        (convergenciaFiltro === "Todos" ||
+
+          (convergenciaFiltro === "Convergió" &&
+            job.converged === true) ||
+
+          (convergenciaFiltro === "No convergió" &&
+            job.converged === false))
+      );
+    });
+
+    setJobsFiltrados(filtrados);
+  };
+
+  const limpiarFiltros = () => {
+    setMetodoFiltro("Todos");
+    setEstadoFiltro("Todos");
+    setConvergenciaFiltro("Todos");
+
+    setJobsFiltrados(jobs);
   };
 
   const obtenerColorEstado = (estado: string) => {
@@ -41,6 +81,7 @@ function Home() {
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-6xl mx-auto">
 
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
 
           <div>
@@ -59,11 +100,15 @@ function Home() {
           >
             + Crear nuevo Job
           </Link>
+
         </div>
 
+        {/* HISTORIAL */}
         <div className="bg-white rounded-xl shadow-lg p-6 border">
 
+          {/* TOP */}
           <div className="flex justify-between items-center mb-6">
+
             <h2 className="text-2xl font-bold text-gray-800">
               Historial de Jobs
             </h2>
@@ -74,18 +119,104 @@ function Home() {
             >
               Actualizar
             </button>
+
           </div>
 
+          {/* FILTROS */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+
+            {/* MÉTODO */}
+            <select
+              value={metodoFiltro}
+              onChange={(e) =>
+                setMetodoFiltro(e.target.value)
+              }
+              className="border p-2 rounded-lg"
+            >
+              <option>Todos</option>
+              <option value="newton">Newton</option>
+              <option value="secante">Secante</option>
+              <option value="muller">Müller</option>
+              <option value="gauss">Gauss</option>
+              <option value="gaussSeidel">
+                Gauss-Seidel
+              </option>
+              <option value="gaussJordan">
+                Gauss-Jordan
+              </option>
+            </select>
+
+            {/* ESTADO */}
+            <select
+              value={estadoFiltro}
+              onChange={(e) =>
+                setEstadoFiltro(e.target.value)
+              }
+              className="border p-2 rounded-lg"
+            >
+              <option>Todos</option>
+              <option value="PENDING">
+                PENDING
+              </option>
+              <option value="RUNNING">
+                RUNNING
+              </option>
+              <option value="DONE">
+                DONE
+              </option>
+              <option value="FAILED">
+                FAILED
+              </option>
+            </select>
+
+            {/* CONVERGENCIA */}
+            <select
+              value={convergenciaFiltro}
+              onChange={(e) =>
+                setConvergenciaFiltro(
+                  e.target.value
+                )
+              }
+              className="border p-2 rounded-lg"
+            >
+              <option>Todos</option>
+              <option>
+                Convergió
+              </option>
+              <option>
+                No convergió
+              </option>
+            </select>
+
+            {/* FILTRAR */}
+            <button
+              onClick={aplicarFiltros}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold"
+            >
+              FILTRAR
+            </button>
+
+            {/* LIMPIAR */}
+            <button
+              onClick={limpiarFiltros}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold"
+            >
+              LIMPIAR
+            </button>
+
+          </div>
+
+          {/* CONTENIDO */}
           {loading ? (
             <div className="text-center py-10">
               <p className="text-gray-500">
                 Cargando jobs...
               </p>
             </div>
-          ) : jobs.length === 0 ? (
+          ) : jobsFiltrados.length === 0 ? (
             <div className="text-center py-10 bg-gray-50 rounded-lg">
               <p className="text-gray-500 text-lg">
-                No hay jobs registrados.
+                No se encontraron jobs.
               </p>
             </div>
           ) : (
@@ -94,6 +225,7 @@ function Home() {
               <table className="min-w-full text-sm border rounded-lg overflow-hidden">
 
                 <thead className="bg-gray-100">
+
                   <tr>
                     <th className="p-4 text-left border">
                       Método
@@ -108,6 +240,10 @@ function Home() {
                     </th>
 
                     <th className="p-4 text-left border">
+                      Convergió
+                    </th>
+
+                    <th className="p-4 text-left border">
                       Tiempo
                     </th>
 
@@ -119,10 +255,12 @@ function Home() {
                       Acciones
                     </th>
                   </tr>
+
                 </thead>
 
                 <tbody>
-                  {jobs.map((job, index) => (
+
+                  {jobsFiltrados.map((job, index) => (
                     <tr
                       key={job.jobId}
                       className={
@@ -151,6 +289,14 @@ function Home() {
                       </td>
 
                       <td className="p-4 border">
+                        {job.converged === true
+                          ? "Sí"
+                          : job.converged === false
+                          ? "No"
+                          : "-"}
+                      </td>
+
+                      <td className="p-4 border">
                         {job.tiempoEjecucionMs
                           ? `${job.tiempoEjecucionMs} ms`
                           : "-"}
@@ -158,24 +304,30 @@ function Home() {
 
                       <td className="p-4 border">
                         {job.creadoEn
-                          ? new Date(job.creadoEn).toLocaleString()
+                          ? new Date(
+                              job.creadoEn
+                            ).toLocaleString()
                           : "-"}
                       </td>
 
                       <td className="p-4 border text-center">
+
                         <Link
                           to={`/job/${job.jobId}`}
                           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"
                         >
                           Ver detalle
                         </Link>
+
                       </td>
 
                     </tr>
                   ))}
+
                 </tbody>
 
               </table>
+
             </div>
           )}
         </div>
