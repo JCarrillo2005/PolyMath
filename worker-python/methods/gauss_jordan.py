@@ -8,35 +8,30 @@ def gauss_jordan(parametros: dict) -> tuple:
     Retorna: (solucion, iteraciones, converged)
     """
     try:
-        # Obtener la matriz aumentada del frontend
         matrix_str = parametros.get('matrix')
         
         if not matrix_str:
-            print("Error: No se encontró 'matrix' en los parámetros")
-            return None, [], False
+            raise ValueError("No se encontró 'matrix' en los parámetros")
         
-        # Convertir la matriz aumentada completa
-        matriz_completa = np.array([list(map(float, row.split(','))) 
-                                     for row in matrix_str.split(';')])
+        try:
+            matriz_completa = np.array([list(map(float, row.split(','))) 
+                                         for row in matrix_str.split(';')])
+        except Exception as e:
+            raise ValueError(f"Error en formato de matriz: {str(e)}")
         
-        # Separar A (coeficientes) y b (términos independientes)
         A = matriz_completa[:, :-1]
         b = matriz_completa[:, -1]
         
         n = len(A)
-        # Crear matriz aumentada [A|b]
         Ab = np.hstack([A, b.reshape(-1, 1)]).astype(float)
         iteraciones = []
         
-        # Método de Gauss-Jordan
         for i in range(n):
-            # Pivoteo parcial (buscar la fila con el valor más grande en la columna i)
+            # Pivoteo parcial
             max_row = np.argmax(np.abs(Ab[i:, i])) + i
             if np.abs(Ab[max_row, i]) < 1e-12:
-                print(f"Error: Matriz singular o mal condicionada en pivote {i}")
-                return None, iteraciones, False
+                raise np.linalg.LinAlgError(f"Matriz singular en pivote {i}")
             
-            # Intercambiar filas si es necesario
             if max_row != i:
                 Ab[[i, max_row]] = Ab[[max_row, i]]
                 iteraciones.append({
@@ -49,7 +44,7 @@ def gauss_jordan(parametros: dict) -> tuple:
                     })
                 })
             
-            # Normalizar la fila pivote (dividir por el pivote)
+            # Normalizar la fila pivote
             pivote = Ab[i, i]
             Ab[i, :] /= pivote
             iteraciones.append({
@@ -57,7 +52,7 @@ def gauss_jordan(parametros: dict) -> tuple:
                 'vector_x': None,
                 'error': None,
                 'datos_adicionales': json.dumps({
-                    'descripcion': f'Normalizar fila {i} (pivote = {pivote:.6f})',
+                    'descripcion': f'Normalizar fila {i}',
                     'matriz': Ab.tolist()
                 })
             })
@@ -72,15 +67,13 @@ def gauss_jordan(parametros: dict) -> tuple:
                         'vector_x': None,
                         'error': None,
                         'datos_adicionales': json.dumps({
-                            'descripcion': f'Eliminar x{i} de fila {j} (factor = {factor:.6f})',
+                            'descripcion': f'Eliminar x{i} de fila {j}',
                             'matriz': Ab.tolist()
                         })
                     })
         
-        # La solución está en la última columna
         x = Ab[:, -1]
         
-        # Guardar iteración final con la solución
         iteraciones.append({
             'iteracion': len(iteraciones) + 1,
             'vector_x': x.tolist(),
@@ -90,8 +83,7 @@ def gauss_jordan(parametros: dict) -> tuple:
         
         return x.tolist(), iteraciones, True
         
+    except np.linalg.LinAlgError as e:
+        raise np.linalg.LinAlgError(f"Matriz singular: {str(e)}")
     except Exception as e:
-        print(f"Error en Gauss-Jordan: {e}")
-        import traceback
-        traceback.print_exc()
-        return None, [], False
+        raise RuntimeError(f"Error en Gauss-Jordan: {str(e)}")

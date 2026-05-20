@@ -5,29 +5,35 @@ def secante(funcion, x0, x1, tolerancia=1e-6, maxIteraciones=100):
     Método de la Secante
     Retorna: (raiz, iteraciones, converged)
     """
-    x = sp.Symbol('x')
-    f_sym = sp.sympify(funcion)
-    f_num = sp.lambdify(x, f_sym, 'numpy')
+    try:
+        x = sp.Symbol('x')
+        f_sym = sp.sympify(funcion)
+        f_num = sp.lambdify(x, f_sym, 'numpy')
+    except Exception as e:
+        raise ValueError(f"Error de parsing: Expresión '{funcion}' inválida - {str(e)}")
     
     iteraciones = []
-    x_prev = x0
-    x_curr = x1
+    x_prev = float(x0)
+    x_curr = float(x1)
     error = float('inf')
     
     for k in range(1, maxIteraciones + 1):
         fx_prev = f_num(x_prev)
         fx_curr = f_num(x_curr)
         
-        if fx_curr - fx_prev == 0:
-            break
+        # Caso: División por cero (f(x0) ≈ f(x1))
+        if abs(fx_curr - fx_prev) < 1e-12:
+            raise ZeroDivisionError(
+                f"División por cero: f({x_prev}) = {fx_prev} y f({x_curr}) = {fx_curr} son prácticamente iguales"
+            )
         
         x_next = x_curr - fx_curr * (x_curr - x_prev) / (fx_curr - fx_prev)
         error = abs(x_next - x_curr)
         
         iteraciones.append({
             'iteracion': k,
-            'xi': x_next,
-            'error': error
+            'xi': float(x_next),
+            'error': float(error)
         })
         
         if error <= tolerancia:

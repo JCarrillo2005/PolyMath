@@ -38,88 +38,127 @@ def procesar_job(job_id: str):
         resultado = None
         iteraciones = []
         converged = False
+        error_mensaje = None
         
-        # MÉTODOS DE RAÍCES
-        if metodo == 'newton':
-            resultado, iteraciones, converged = newton(
-                parametros.get('funcion'),
-                parametros.get('x0'),
-                parametros.get('tolerancia', 1e-6),
-                parametros.get('maxIteraciones', 100)
-            )
-        elif metodo == 'secante':
-            resultado, iteraciones, converged = secante(
-                parametros.get('funcion'),
-                parametros.get('x0'),
-                parametros.get('x1'),
-                parametros.get('tolerancia', 1e-6),
-                parametros.get('maxIteraciones', 100)
-            )
-        elif metodo == 'muller':
-            resultado, iteraciones, converged = muller(
-                parametros.get('funcion'),
-                parametros.get('x0'),
-                parametros.get('x1'),
-                parametros.get('x2'),
-                parametros.get('tolerancia', 1e-6),
-                parametros.get('maxIteraciones', 100)
-            )
-        # MÉTODOS DE SISTEMAS LINEALES
-        elif metodo == 'gauss':
-            resultado, iteraciones, converged = gauss(parametros)
-        elif metodo == 'gaussSeidel':
-            resultado, iteraciones, converged = gauss_seidel(parametros)
-        elif metodo == 'gaussJordan':
-            resultado, iteraciones, converged = gauss_jordan(parametros)
-        else:
-            print(f"Método desconocido: {metodo}")
-            cursor.execute(
-                "UPDATE Jobs SET Estado = 'FAILED', ErrorMensaje = ?, ActualizadoEn = GETUTCDATE() WHERE JobId = ?",
-                (f"Método no implementado: {metodo}", job_id)
-            )
-            conn.commit()
-            return
+        try:
+            # MÉTODOS DE RAÍCES
+            if metodo == 'newton':
+                resultado, iteraciones, converged = newton(
+                    parametros.get('funcion'),
+                    parametros.get('x0'),
+                    parametros.get('tolerancia', 1e-6),
+                    parametros.get('maxIteraciones', 100)
+                )
+            elif metodo == 'secante':
+                resultado, iteraciones, converged = secante(
+                    parametros.get('funcion'),
+                    parametros.get('x0'),
+                    parametros.get('x1'),
+                    parametros.get('tolerancia', 1e-6),
+                    parametros.get('maxIteraciones', 100)
+                )
+            elif metodo == 'muller':
+                resultado, iteraciones, converged = muller(
+                    parametros.get('funcion'),
+                    parametros.get('x0'),
+                    parametros.get('x1'),
+                    parametros.get('x2'),
+                    parametros.get('tolerancia', 1e-6),
+                    parametros.get('maxIteraciones', 100)
+                )
+            # MÉTODOS DE SISTEMAS LINEALES
+            elif metodo == 'gauss':
+                resultado, iteraciones, converged = gauss(parametros)
+            elif metodo == 'gaussSeidel':
+                resultado, iteraciones, converged = gauss_seidel(parametros)
+            elif metodo == 'gaussJordan':
+                resultado, iteraciones, converged = gauss_jordan(parametros)
+            else:
+                error_mensaje = f"Método no implementado: {metodo}"
+                print(error_mensaje)
+                cursor.execute(
+                    "UPDATE Jobs SET Estado = 'FAILED', ErrorMensaje = ?, ActualizadoEn = GETUTCDATE() WHERE JobId = ?",
+                    (error_mensaje, job_id)
+                )
+                conn.commit()
+                return
+                
+        except ZeroDivisionError as e:
+            # Captura división por cero (Newton-Raphson, Secante)
+            error_mensaje = f"División por cero — job FAILED: {str(e)}"
+            converged = False
+            print(error_mensaje)
+            
+        except ValueError as e:
+            # Captura error de parsing (expresión inválida)
+            error_mensaje = f"Error de parsing: {str(e)}"
+            converged = False
+            print(error_mensaje)
+            
+        except np.linalg.LinAlgError as e:
+            # Captura matriz singular (Gauss, Gauss-Jordan)
+            error_mensaje = f"Matriz singular — job FAILED: {str(e)}"
+            converged = False
+            print(error_mensaje)
+            
+        except Exception as e:
+            # Captura cualquier otro error (diagonal con ceros, etc.)
+            error_mensaje = f"Error en {metodo}: {str(e)}"
+            converged = False
+            print(error_mensaje)
         
         tiempo_ms = int((time.time() - start_time) * 1000)
         
-        # GUARDAR ITERACIONES
-        for it in iteraciones:
-            xi_value = it.get('xi')
-            vector_x_value = it.get('vector_x')
-            error_value = it.get('error')
-            datos_adicionales = it.get('datos_adicionales')
-            
-            cursor.execute("""
-                INSERT INTO JobIterations (JobId, Iteracion, Xi, VectorX, Error, ErroresIndividuales, DatosAdicionales)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, job_id, it['iteracion'], 
-                str(xi_value) if xi_value is not None else None,
-                json.dumps(vector_x_value) if vector_x_value is not None else None,
-                error_value,
-                json.dumps(it.get('errores_individuales')) if it.get('errores_individuales') is not None else None,
-                datos_adicionales
-            )
+        # GUARDAR ITERACIONES (solo si hay iteraciones)
+        if iteraciones:
+            for it in iteraciones:
+                xi_value = it.get('xi')
+                vector_x_value = it.get('vector_x')
+                error_value = it.get('error')
+                datos_adicionales = it.get('datos_adicionales')
+                
+                cursor.execute("""
+                    INSERT INTO JobIterations (JobId, Iteracion, Xi, VectorX, Error, ErroresIndividuales, DatosAdicionales)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, job_id, it['iteracion'], 
+                    str(xi_value) if xi_value is not None else None,
+                    json.dumps(vector_x_value) if vector_x_value is not None else None,
+                    error_value,
+                    json.dumps(it.get('errores_individuales')) if it.get('errores_individuales') is not None else None,
+                    datos_adicionales
+                )
         
-        estado_final = 'DONE' if converged else 'FAILED'
+        # Determinar estado final
+        if error_mensaje:
+            estado_final = 'FAILED'
+        else:
+            estado_final = 'DONE' if converged else 'FAILED'
+            if not converged and not error_mensaje:
+                error_mensaje = f"Máximo de iteraciones alcanzado ({parametros.get('maxIteraciones', 100)})"
+        
+        # ACTUALIZAR JOB CON ERROR MENSAJE
         cursor.execute("""
             UPDATE Jobs 
             SET Estado = ?, 
                 Resultado = ?,
                 Converged = ?,
                 TiempoEjecucionMs = ?,
+                ErrorMensaje = ?,
                 ActualizadoEn = GETUTCDATE()
             WHERE JobId = ?
         """, estado_final, str(resultado) if resultado is not None else None, 
-            converged, tiempo_ms, job_id)
+            converged, tiempo_ms, error_mensaje, job_id)
         
         conn.commit()
         print(f"Job {job_id} - Estado: {estado_final} en {tiempo_ms}ms")
+        if error_mensaje:
+            print(f"Job {job_id} - Error: {error_mensaje}")
         
     except Exception as e:
         print(f"Error procesando job {job_id}: {e}")
         cursor.execute(
             "UPDATE Jobs SET Estado = 'FAILED', ErrorMensaje = ?, ActualizadoEn = GETUTCDATE() WHERE JobId = ?",
-            (str(e), job_id)
+            (f"Error en procesamiento: {str(e)}", job_id)
         )
         conn.commit()
     
@@ -149,4 +188,5 @@ def main():
             time.sleep(5)
 
 if __name__ == "__main__":
+    import numpy as np  # Agregado para capturar LinAlgError
     main()

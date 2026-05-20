@@ -3,12 +3,15 @@ import numpy as np
 
 def muller(funcion, x0, x1, x2, tolerancia=1e-6, maxIteraciones=100):
     """
-    Método de Muller
+    Método de Müller
     Retorna: (raiz, iteraciones, converged)
     """
-    x = sp.Symbol('x')
-    f_sym = sp.sympify(funcion)
-    f_num = sp.lambdify(x, f_sym, 'numpy')
+    try:
+        x = sp.Symbol('x')
+        f_sym = sp.sympify(funcion)
+        f_num = sp.lambdify(x, f_sym, 'numpy')
+    except Exception as e:
+        raise ValueError(f"Error de parsing: Expresión '{funcion}' inválida - {str(e)}")
     
     iteraciones = []
     x_0 = float(x0)
@@ -28,20 +31,33 @@ def muller(funcion, x0, x1, x2, tolerancia=1e-6, maxIteraciones=100):
         
         discriminante = b**2 - 4*a*c
         
+        # Manejo de discriminante negativo
         if discriminante >= 0:
-            if abs(b + np.sqrt(discriminante)) > abs(b - np.sqrt(discriminante)):
-                x_next = x_2 - (2*c) / (b + np.sqrt(discriminante))
+            sqrt_disc = np.sqrt(discriminante)
+            if abs(b + sqrt_disc) > abs(b - sqrt_disc):
+                x_next = x_2 - (2*c) / (b + sqrt_disc)
             else:
-                x_next = x_2 - (2*c) / (b - np.sqrt(discriminante))
+                x_next = x_2 - (2*c) / (b - sqrt_disc)
         else:
-            x_next = x_2 - (2*c) / b
+            # Discriminante negativo - usar raíz compleja
+            # Para el método de Müller, esto puede ocurrir y es aceptable
+            sqrt_disc = np.sqrt(complex(discriminante))
+            if abs(b + sqrt_disc) > abs(b - sqrt_disc):
+                x_next = x_2 - (2*c) / (b + sqrt_disc)
+            else:
+                x_next = x_2 - (2*c) / (b - sqrt_disc)
         
+        # El error se calcula con magnitud (para números complejos también funciona)
         error = abs(x_next - x_2)
+        
+        # Convertir a float si es real, mantener como complex si tiene parte imaginaria
+        if isinstance(x_next, complex) and abs(x_next.imag) < 1e-10:
+            x_next = x_next.real
         
         iteraciones.append({
             'iteracion': k,
             'xi': x_next,
-            'error': error
+            'error': float(error)
         })
         
         if error <= tolerancia:
