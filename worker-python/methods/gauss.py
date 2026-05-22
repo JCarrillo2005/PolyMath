@@ -2,24 +2,17 @@ import numpy as np
 import json
 
 def gauss(parametros: dict) -> tuple:
-    """
-    Resuelve sistema lineal Ax = b usando eliminación Gaussiana
-    Recibe matriz aumentada (última columna es el vector b)
-    """
     try:
         matrix_str = parametros.get('matrix')
-        
         if not matrix_str:
             raise ValueError("No se encontró 'matrix' en los parámetros")
         
-        # Convertir la matriz aumentada completa
         try:
             matriz_completa = np.array([list(map(float, row.split(','))) 
                                          for row in matrix_str.split(';')])
-        except Exception as e:
-            raise ValueError(f"Error en formato de matriz: {str(e)}")
+        except Exception:
+            raise ValueError("Formato de matriz inválido. Use: filas separadas por ';' y números por ','")
         
-        # Separar A (coeficientes) y b (términos independientes)
         A = matriz_completa[:, :-1]
         b = matriz_completa[:, -1]
         
@@ -27,12 +20,10 @@ def gauss(parametros: dict) -> tuple:
         Ab = np.hstack([A, b.reshape(-1, 1)]).astype(float)
         iteraciones = []
         
-        # Eliminación hacia adelante
         for i in range(n):
-            # Pivoteo parcial
             max_row = np.argmax(np.abs(Ab[i:, i])) + i
             if np.abs(Ab[max_row, i]) < 1e-12:
-                raise np.linalg.LinAlgError(f"Matriz singular en pivote {i}")
+                raise np.linalg.LinAlgError("La matriz es singular (no tiene solución única).")
             
             if max_row != i:
                 Ab[[i, max_row]] = Ab[[max_row, i]]
@@ -60,7 +51,6 @@ def gauss(parametros: dict) -> tuple:
                     })
                 })
         
-        # Sustitución hacia atrás
         x = np.zeros(n)
         for i in range(n - 1, -1, -1):
             x[i] = (Ab[i, -1] - np.dot(Ab[i, i+1:n], x[i+1:n])) / Ab[i, i]
@@ -75,7 +65,6 @@ def gauss(parametros: dict) -> tuple:
         return x.tolist(), iteraciones, True
         
     except np.linalg.LinAlgError as e:
-        # Relanzar para que el llamador capture el error
-        raise np.linalg.LinAlgError(f"Matriz singular: {str(e)}")
-    except Exception as e:
-        raise RuntimeError(f"Error en eliminación Gaussiana: {str(e)}")
+        raise np.linalg.LinAlgError(str(e))
+    except Exception:
+        raise RuntimeError("Error en el método de Gauss. Verifique la matriz ingresada.")

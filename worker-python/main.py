@@ -1,5 +1,6 @@
 import json
 import time
+import numpy as np
 from redis_client import redis_client
 from db import get_db_connection
 from methods.newton import newton
@@ -107,28 +108,34 @@ def procesar_job(job_id: str):
                 return
                 
         except ZeroDivisionError as e:
-            # División por cero (Newton, Secante)
-            error_mensaje = f"División por cero — job FAILED: {str(e)}"
+            # División por cero (Newton, Secante, Muller)
+            error_mensaje = str(e)
             converged = False
-            print(error_mensaje)
+            print(f"División por cero en {metodo}: {error_mensaje}")
             
         except ValueError as e:
-            # Error de parsing (expresión inválida)
-            error_mensaje = f"Error de parsing: {str(e)}"
+            # Error de parsing (expresión inválida) o formato de matriz
+            error_mensaje = str(e)
             converged = False
-            print(error_mensaje)
+            print(f"Error de valor en {metodo}: {error_mensaje}")
+            
+        except RuntimeError as e:
+            # Diagonal con ceros (Gauss-Seidel) u otros errores
+            error_mensaje = str(e)
+            converged = False
+            print(f"Error en {metodo}: {error_mensaje}")
             
         except np.linalg.LinAlgError as e:
             # Matriz singular (Gauss, Gauss-Jordan)
-            error_mensaje = f"Matriz singular — job FAILED: {str(e)}"
+            error_mensaje = str(e)
             converged = False
-            print(error_mensaje)
+            print(f"Matriz singular en {metodo}: {error_mensaje}")
             
         except Exception as e:
-            # Otros errores (diagonal con ceros, etc.)
-            error_mensaje = f"Error en {metodo}: {str(e)}"
+            # Otros errores no clasificados
+            error_mensaje = str(e)
             converged = False
-            print(error_mensaje)
+            print(f"Error inesperado en {metodo}: {error_mensaje}")
         
         tiempo_ms = int((time.time() - start_time) * 1000)
         
@@ -151,14 +158,11 @@ def procesar_job(job_id: str):
                     datos_adicionales
                 )
         
-        # DETERMINAR ESTADO FINAL SEGÚN ESPECIFICACIÓN
+        # DETERMINAR ESTADO FINAL
         if error_mensaje:
-            # Expresión inválida, división por cero, matriz singular, diagonal con ceros → FAILED
             estado_final = 'FAILED'
         else:
-            # maxIter alcanzado o convergió correctamente → DONE
             estado_final = 'DONE'
-            # Si no convergió y no hay error, fue por maxIter alcanzado
             if not converged:
                 print(f"Job {job_id} - Advertencia: Máximo de iteraciones alcanzado ({parametros.get('maxIteraciones', 100)})")
         
@@ -214,5 +218,4 @@ def main():
             time.sleep(5)
 
 if __name__ == "__main__":
-    import numpy as np
     main()

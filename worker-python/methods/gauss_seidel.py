@@ -10,8 +10,8 @@ def gauss_seidel(parametros: dict) -> tuple:
         try:
             matriz_completa = np.array([list(map(float, row.split(','))) 
                                          for row in matrix_str.split(';')])
-        except Exception as e:
-            raise ValueError(f"Error en formato de matriz: {str(e)}")
+        except Exception:
+            raise ValueError("Formato de matriz inválido. Use: filas separadas por ';' y números por ','")
         
         A = matriz_completa[:, :-1]
         b = matriz_completa[:, -1]
@@ -24,10 +24,7 @@ def gauss_seidel(parametros: dict) -> tuple:
         # Verificar diagonales con ceros
         for i in range(n):
             if abs(A[i][i]) < 1e-12:
-                raise ZeroDivisionError(
-                    f"Elemento diagonal A[{i}][{i}] = {A[i][i]} es cero. "
-                    "El método no puede continuar."
-                )
+                raise RuntimeError("Diagonal con ceros. El método no puede continuar.")
         
         x = np.zeros(n)
         x_prev = np.copy(x)
@@ -61,10 +58,11 @@ def gauss_seidel(parametros: dict) -> tuple:
             if error_max < tolerancia:
                 return x.tolist(), iteraciones, True
         
-        # No convergió en max_iter
         return x.tolist(), iteraciones, False
         
-    except ZeroDivisionError as e:
-        raise ZeroDivisionError(f"Gauss-Seidel: {str(e)}")
-    except Exception as e:
-        raise RuntimeError(f"Error en Gauss-Seidel: {str(e)}")
+    except RuntimeError:
+        raise  # Relanzar para que main.py lo capture
+    except ValueError as e:
+        raise ValueError(str(e))
+    except Exception:
+        raise RuntimeError("Error en el método de Gauss-Seidel. Verifique la matriz ingresada.")

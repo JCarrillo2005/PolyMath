@@ -2,16 +2,12 @@ import sympy as sp
 import numpy as np
 
 def muller(funcion, x0, x1, x2, tolerancia=1e-6, maxIteraciones=100):
-    """
-    Método de Müller
-    Retorna: (raiz, iteraciones, converged)
-    """
     try:
         x = sp.Symbol('x')
         f_sym = sp.sympify(funcion)
         f_num = sp.lambdify(x, f_sym, 'numpy')
-    except Exception as e:
-        raise ValueError(f"Error de parsing: Expresión '{funcion}' inválida - {str(e)}")
+    except Exception:
+        raise ValueError("Error en la función. Revise la sintaxis (ej: x**2, exp(x), sin(x)).")
     
     iteraciones = []
     x_0 = float(x0)
@@ -31,7 +27,6 @@ def muller(funcion, x0, x1, x2, tolerancia=1e-6, maxIteraciones=100):
         
         discriminante = b**2 - 4*a*c
         
-        # Manejo de discriminante negativo
         if discriminante >= 0:
             sqrt_disc = np.sqrt(discriminante)
             if abs(b + sqrt_disc) > abs(b - sqrt_disc):
@@ -39,18 +34,14 @@ def muller(funcion, x0, x1, x2, tolerancia=1e-6, maxIteraciones=100):
             else:
                 x_next = x_2 - (2*c) / (b - sqrt_disc)
         else:
-            # Discriminante negativo - usar raíz compleja
-            # Para el método de Müller, esto puede ocurrir y es aceptable
             sqrt_disc = np.sqrt(complex(discriminante))
             if abs(b + sqrt_disc) > abs(b - sqrt_disc):
                 x_next = x_2 - (2*c) / (b + sqrt_disc)
             else:
                 x_next = x_2 - (2*c) / (b - sqrt_disc)
         
-        # El error se calcula con magnitud (para números complejos también funciona)
         error = abs(x_next - x_2)
         
-        # Convertir a float si es real, mantener como complex si tiene parte imaginaria
         if isinstance(x_next, complex) and abs(x_next.imag) < 1e-10:
             x_next = x_next.real
         

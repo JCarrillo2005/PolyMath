@@ -2,22 +2,16 @@ import numpy as np
 import json
 
 def gauss_jordan(parametros: dict) -> tuple:
-    """
-    Resuelve sistema lineal Ax = b usando Gauss-Jordan (RREF)
-    Recibe matriz aumentada (última columna es el vector b)
-    Retorna: (solucion, iteraciones, converged)
-    """
     try:
         matrix_str = parametros.get('matrix')
-        
         if not matrix_str:
             raise ValueError("No se encontró 'matrix' en los parámetros")
         
         try:
             matriz_completa = np.array([list(map(float, row.split(','))) 
                                          for row in matrix_str.split(';')])
-        except Exception as e:
-            raise ValueError(f"Error en formato de matriz: {str(e)}")
+        except Exception:
+            raise ValueError("Formato de matriz inválido. Use: filas separadas por ';' y números por ','")
         
         A = matriz_completa[:, :-1]
         b = matriz_completa[:, -1]
@@ -27,10 +21,9 @@ def gauss_jordan(parametros: dict) -> tuple:
         iteraciones = []
         
         for i in range(n):
-            # Pivoteo parcial
             max_row = np.argmax(np.abs(Ab[i:, i])) + i
             if np.abs(Ab[max_row, i]) < 1e-12:
-                raise np.linalg.LinAlgError(f"Matriz singular en pivote {i}")
+                raise np.linalg.LinAlgError("La matriz es singular (no tiene solución única).")
             
             if max_row != i:
                 Ab[[i, max_row]] = Ab[[max_row, i]]
@@ -44,7 +37,6 @@ def gauss_jordan(parametros: dict) -> tuple:
                     })
                 })
             
-            # Normalizar la fila pivote
             pivote = Ab[i, i]
             Ab[i, :] /= pivote
             iteraciones.append({
@@ -57,7 +49,6 @@ def gauss_jordan(parametros: dict) -> tuple:
                 })
             })
             
-            # Eliminar la columna i en las demás filas
             for j in range(n):
                 if j != i:
                     factor = Ab[j, i]
@@ -84,6 +75,6 @@ def gauss_jordan(parametros: dict) -> tuple:
         return x.tolist(), iteraciones, True
         
     except np.linalg.LinAlgError as e:
-        raise np.linalg.LinAlgError(f"Matriz singular: {str(e)}")
-    except Exception as e:
-        raise RuntimeError(f"Error en Gauss-Jordan: {str(e)}")
+        raise np.linalg.LinAlgError(str(e))
+    except Exception:
+        raise RuntimeError("Error en el método de Gauss-Jordan. Verifique la matriz ingresada.")
