@@ -1,25 +1,93 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAllJobs } from "../services/jobs";
+import { LoadingSpinner } from "../components/LoadingSpinner";
+
+// ==================== INTERFACES TIPADAS ====================
+
+export type MetodoNumerico =
+  | "newton"
+  | "secante"
+  | "muller"
+  | "gauss"
+  | "gaussSeidel"
+  | "gaussJordan";
+
+export type EstadoJob = "PENDING" | "RUNNING" | "DONE" | "FAILED";
+export type ConvergenciaFiltro = "Todos" | "Convergió" | "No convergió";
+
+export interface Job {
+  jobId: string;
+  metodo: MetodoNumerico;
+  estado: EstadoJob;
+  resultado: string | null;
+  converged: boolean | null;
+  tiempoEjecucionMs: number | null;
+  creadoEn: string;
+  errorMensaje?: string;
+  funcion?: string;
+  parametrosJson?: string;
+}
+
+export interface Filtros {
+  metodo: MetodoNumerico | "Todos";
+  estado: EstadoJob | "Todos";
+  convergencia: ConvergenciaFiltro;
+}
+
+// ==================== FUNCIÓN PARA OBTENER COLOR DEL ESTADO ====================
+
+const obtenerColorEstado = (estado: EstadoJob): string => {
+  const colores: Record<EstadoJob, string> = {
+    DONE: "bg-green-100 text-green-800 border-green-200",
+    FAILED: "bg-red-100 text-red-800 border-red-200",
+    RUNNING: "bg-blue-100 text-blue-800 border-blue-200",
+    PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  };
+  return colores[estado];
+};
+
+// ==================== FUNCIÓN PARA FORMATEAR NOMBRE DEL MÉTODO ====================
+
+const formatearNombreMetodo = (metodo: MetodoNumerico): string => {
+  const nombres: Record<MetodoNumerico, string> = {
+    newton: "Newton-Raphson",
+    secante: "Secante",
+    muller: "Müller",
+    gauss: "Gauss",
+    gaussSeidel: "Gauss-Seidel",
+    gaussJordan: "Gauss-Jordan",
+  };
+  return nombres[metodo];
+};
+
+// ==================== COMPONENTE PRINCIPAL ====================
 
 function Home() {
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [jobsFiltrados, setJobsFiltrados] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Estados con tipado estricto
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsFiltrados, setJobsFiltrados] = useState<Job[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [metodoFiltro, setMetodoFiltro] = useState("Todos");
-  const [estadoFiltro, setEstadoFiltro] = useState("Todos");
+  // Filtros con tipado estricto
+  const [metodoFiltro, setMetodoFiltro] = useState<MetodoNumerico | "Todos">(
+    "Todos",
+  );
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoJob | "Todos">(
+    "Todos",
+  );
   const [convergenciaFiltro, setConvergenciaFiltro] =
-    useState("Todos");
+    useState<ConvergenciaFiltro>("Todos");
 
+  // Cargar jobs al montar el componente
   useEffect(() => {
     cargarJobs();
   }, []);
 
-  const cargarJobs = async () => {
+  const cargarJobs = async (): Promise<void> => {
     try {
-      const data = await getAllJobs();
-
+      setLoading(true);
+      const data: Job[] = await getAllJobs();
       setJobs(data);
       setJobsFiltrados(data);
     } catch (error) {
@@ -29,308 +97,308 @@ function Home() {
     }
   };
 
-  const aplicarFiltros = () => {
-    let filtrados = [...jobs];
+  const aplicarFiltros = (): void => {
+    let filtrados: Job[] = [...jobs];
 
-    filtrados = filtrados.filter((job) => {
-      return (
-        (metodoFiltro === "Todos" ||
-          job.metodo === metodoFiltro) &&
+    // Filtrar por método
+    if (metodoFiltro !== "Todos") {
+      filtrados = filtrados.filter((job) => job.metodo === metodoFiltro);
+    }
 
-        (estadoFiltro === "Todos" ||
-          job.estado === estadoFiltro) &&
+    // Filtrar por estado
+    if (estadoFiltro !== "Todos") {
+      filtrados = filtrados.filter((job) => job.estado === estadoFiltro);
+    }
 
-        (convergenciaFiltro === "Todos" ||
-
-          (convergenciaFiltro === "Convergió" &&
-            job.converged === true) ||
-
-          (convergenciaFiltro === "No convergió" &&
-            job.converged === false))
-      );
-    });
+    // Filtrar por convergencia
+    if (convergenciaFiltro !== "Todos") {
+      const convergio = convergenciaFiltro === "Convergió";
+      filtrados = filtrados.filter((job) => job.converged === convergio);
+    }
 
     setJobsFiltrados(filtrados);
   };
 
-  const limpiarFiltros = () => {
+  const limpiarFiltros = (): void => {
     setMetodoFiltro("Todos");
     setEstadoFiltro("Todos");
     setConvergenciaFiltro("Todos");
-
     setJobsFiltrados(jobs);
   };
 
-  const obtenerColorEstado = (estado: string) => {
-    switch (estado) {
-      case "DONE":
-        return "text-green-600 bg-green-100";
-
-      case "FAILED":
-        return "text-red-600 bg-red-100";
-
-      case "RUNNING":
-        return "text-blue-600 bg-blue-100";
-
-      default:
-        return "text-yellow-600 bg-yellow-100";
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Fondo con patrón de cuadrícula (estilo matemático) */}
+      <div
+        className="fixed inset-0 pointer-events-none opacity-20"
+        style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, #3b82f6 1px, transparent 1px)`,
+          backgroundSize: "32px 32px",
+        }}
+      />
 
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* HEADER - Hero section con gradiente */}
+        <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-2xl shadow-2xl mb-8 overflow-hidden">
+          <div className="relative px-8 py-12">
+            {/* Efecto de fondo decorativo */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/10 rounded-full blur-2xl" />
 
-          <div>
-            <h1 className="text-4xl font-bold text-gray-800">
-              PolyMath
-            </h1>
-
-            <p className="text-gray-600 mt-2">
-              Plataforma de métodos numéricos
-            </p>
+            <div className="relative z-10">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
+                      PolyMath
+                    </h1>
+                  </div>
+                  <p className="text-blue-200 text-lg max-w-2xl">
+                    Plataforma de ejecución, trazabilidad y comparación de
+                    métodos numéricos
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 rounded-lg text-xs text-blue-200">
+                      Newton-Raphson
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 rounded-lg text-xs text-blue-200">
+                      Secante
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 rounded-lg text-xs text-blue-200">
+                      Müller
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 rounded-lg text-xs text-blue-200">
+                      Gauss
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 rounded-lg text-xs text-blue-200">
+                      Gauss-Seidel
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 rounded-lg text-xs text-blue-200">
+                      Gauss-Jordan
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  to="/create"
+                  className="group relative overflow-hidden bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    <span className="text-xl">+</span>
+                    Crear nuevo Job
+                  </span>
+                </Link>
+              </div>
+            </div>
           </div>
-
-          <Link
-            to="/create"
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold shadow"
-          >
-            + Crear nuevo Job
-          </Link>
-
         </div>
 
-        {/* HISTORIAL */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border">
-
-          {/* TOP */}
-          <div className="flex justify-between items-center mb-6">
-
-            <h2 className="text-2xl font-bold text-gray-800">
-              Historial de Jobs
+        {/* PANEL DE FILTROS */}
+        <div className="bg-white rounded-xl shadow-lg mb-8 overflow-hidden border border-gray-100">
+          <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-700 flex items-center gap-2">
+              Filtrar resultados
             </h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Método
+                </label>
+                <select
+                  value={metodoFiltro}
+                  onChange={(e) =>
+                    setMetodoFiltro(e.target.value as MetodoNumerico | "Todos")
+                  }
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                >
+                  <option value="Todos">Todos</option>
+                  <option value="newton">Newton-Raphson</option>
+                  <option value="secante">Secante</option>
+                  <option value="muller">Müller</option>
+                  <option value="gauss">Gauss</option>
+                  <option value="gaussSeidel">Gauss-Seidel</option>
+                  <option value="gaussJordan">Gauss-Jordan</option>
+                </select>
+              </div>
 
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Estado
+                </label>
+                <select
+                  value={estadoFiltro}
+                  onChange={(e) =>
+                    setEstadoFiltro(e.target.value as EstadoJob | "Todos")
+                  }
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                >
+                  <option value="Todos">Todos</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="RUNNING">RUNNING</option>
+                  <option value="DONE">DONE</option>
+                  <option value="FAILED">FAILED</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Convergencia
+                </label>
+                <select
+                  value={convergenciaFiltro}
+                  onChange={(e) =>
+                    setConvergenciaFiltro(e.target.value as ConvergenciaFiltro)
+                  }
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                >
+                  <option value="Todos">Todos</option>
+                  <option value="Convergió">Convergió</option>
+                  <option value="No convergió">No convergió</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 lg:col-span-2">
+                <button
+                  onClick={aplicarFiltros}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-lg font-semibold shadow-md transition-all duration-200"
+                >
+                  Aplicar filtros
+                </button>
+                <button
+                  onClick={limpiarFiltros}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium border border-gray-200 transition"
+                >
+                  Limpiar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* TABLA DE JOBS */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+          <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 className="font-semibold text-gray-700 flex items-center gap-2">
+              Historial de Jobs
+              {!loading && (
+                <span className="ml-2 text-sm font-normal text-gray-400">
+                  ({jobsFiltrados.length} jobs)
+                </span>
+              )}
+            </h2>
             <button
               onClick={cargarJobs}
-              className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm font-medium"
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+              title="Actualizar"
             >
-              Actualizar
+              🔄
             </button>
-
           </div>
 
-          {/* FILTROS */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-
-            {/* MÉTODO */}
-            <select
-              value={metodoFiltro}
-              onChange={(e) =>
-                setMetodoFiltro(e.target.value)
-              }
-              className="border p-2 rounded-lg"
-            >
-              <option>Todos</option>
-              <option value="newton">Newton</option>
-              <option value="secante">Secante</option>
-              <option value="muller">Müller</option>
-              <option value="gauss">Gauss</option>
-              <option value="gaussSeidel">
-                Gauss-Seidel
-              </option>
-              <option value="gaussJordan">
-                Gauss-Jordan
-              </option>
-            </select>
-
-            {/* ESTADO */}
-            <select
-              value={estadoFiltro}
-              onChange={(e) =>
-                setEstadoFiltro(e.target.value)
-              }
-              className="border p-2 rounded-lg"
-            >
-              <option>Todos</option>
-              <option value="PENDING">
-                PENDING
-              </option>
-              <option value="RUNNING">
-                RUNNING
-              </option>
-              <option value="DONE">
-                DONE
-              </option>
-              <option value="FAILED">
-                FAILED
-              </option>
-            </select>
-
-            {/* CONVERGENCIA */}
-            <select
-              value={convergenciaFiltro}
-              onChange={(e) =>
-                setConvergenciaFiltro(
-                  e.target.value
-                )
-              }
-              className="border p-2 rounded-lg"
-            >
-              <option>Todos</option>
-              <option>
-                Convergió
-              </option>
-              <option>
-                No convergió
-              </option>
-            </select>
-
-            {/* FILTRAR */}
-            <button
-              onClick={aplicarFiltros}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold"
-            >
-              FILTRAR
-            </button>
-
-            {/* LIMPIAR */}
-            <button
-              onClick={limpiarFiltros}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold"
-            >
-              LIMPIAR
-            </button>
-
-          </div>
-
-          {/* CONTENIDO */}
           {loading ? (
-            <div className="text-center py-10">
-              <p className="text-gray-500">
-                Cargando jobs...
-              </p>
-            </div>
+            <LoadingSpinner message="Cargando jobs..." size="lg" />
           ) : jobsFiltrados.length === 0 ? (
-            <div className="text-center py-10 bg-gray-50 rounded-lg">
-              <p className="text-gray-500 text-lg">
-                No se encontraron jobs.
-              </p>
+            <div className="text-center py-16 bg-gray-50">
+              <div className="text-6xl mb-4">📭</div>
+              <p className="text-gray-500 text-lg">No se encontraron jobs</p>
+              <Link
+                to="/create"
+                className="inline-block mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition"
+              >
+                Crear un job
+              </Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
-
-              <table className="min-w-full text-sm border rounded-lg overflow-hidden">
-
-                <thead className="bg-gray-100">
-
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="p-4 text-left border">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
                       Método
                     </th>
-
-                    <th className="p-4 text-left border">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
                       Estado
                     </th>
-
-                    <th className="p-4 text-left border">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
                       Resultado
                     </th>
-
-                    <th className="p-4 text-left border">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
                       Convergió
                     </th>
-
-                    <th className="p-4 text-left border">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
                       Tiempo
                     </th>
-
-                    <th className="p-4 text-left border">
+                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
                       Fecha
                     </th>
-
-                    <th className="p-4 text-center border">
+                    <th className="px-6 py-4 text-center font-semibold text-gray-600">
                       Acciones
                     </th>
                   </tr>
-
                 </thead>
-
-                <tbody>
-
-                  {jobsFiltrados.map((job, index) => (
+                <tbody className="divide-y divide-gray-50">
+                  {jobsFiltrados.map((job) => (
                     <tr
                       key={job.jobId}
-                      className={
-                        index % 2 === 0
-                          ? "bg-white"
-                          : "bg-gray-50"
-                      }
+                      className="hover:bg-blue-50/30 transition-colors duration-150"
                     >
-
-                      <td className="p-4 border font-semibold capitalize">
-                        {job.metodo}
+                      <td className="px-6 py-4 font-medium capitalize">
+                        {formatearNombreMetodo(job.metodo)}
                       </td>
-
-                      <td className="p-4 border">
+                      <td className="px-6 py-4">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-bold ${obtenerColorEstado(
-                            job.estado
-                          )}`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${obtenerColorEstado(job.estado)}`}
                         >
                           {job.estado}
                         </span>
                       </td>
-
-                      <td className="p-4 border font-mono break-all">
+                      <td className="px-6 py-4 font-mono text-xs max-w-xs truncate">
                         {job.resultado || "-"}
                       </td>
-
-                      <td className="p-4 border">
-                        {job.converged === true
-                          ? "Sí"
-                          : job.converged === false
-                          ? "No"
-                          : "-"}
+                      <td className="px-6 py-4">
+                        {job.converged === true ? (
+                          <span className="text-green-600 font-medium">Sí</span>
+                        ) : job.converged === false ? (
+                          <span className="text-red-600 font-medium">No</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </td>
-
-                      <td className="p-4 border">
+                      <td className="px-6 py-4 text-gray-600">
                         {job.tiempoEjecucionMs
                           ? `${job.tiempoEjecucionMs} ms`
                           : "-"}
                       </td>
-
-                      <td className="p-4 border">
+                      <td className="px-6 py-4 text-gray-500 text-xs">
                         {job.creadoEn
-                          ? new Date(
-                              job.creadoEn
-                            ).toLocaleString()
+                          ? new Date(job.creadoEn).toLocaleString()
                           : "-"}
                       </td>
-
-                      <td className="p-4 border text-center">
-
+                      <td className="px-6 py-4 text-center">
                         <Link
                           to={`/job/${job.jobId}`}
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap inline-block"
+                          className="inline-flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
                         >
                           Ver detalle
                         </Link>
-
                       </td>
-
                     </tr>
                   ))}
-
                 </tbody>
-
               </table>
-
             </div>
           )}
         </div>
+
+        {/* FOOTER */}
+        <footer className="mt-12 text-center text-gray-400 text-sm py-6 border-t border-gray-200">
+          <p>
+            PolyMath - Métodos Numéricos | Arquitectura Híbrida con Docker,
+            Redis y SQL Server
+          </p>
+          <p className="mt-1">© 2025 - Todos los derechos reservados</p>
+        </footer>
       </div>
     </div>
   );

@@ -2,6 +2,73 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createJob } from "../services/jobs.ts";
 
+// ==================== INTERFACES TIPADAS ====================
+
+export type MetodoNumerico =
+  | "newton"
+  | "secante"
+  | "muller"
+  | "gauss"
+  | "gaussSeidel"
+  | "gaussJordan";
+
+export interface FormData {
+  tolerancia: number;
+  maxIteraciones: number;
+  funcion?: string;
+  x0?: number;
+  x1?: number;
+  x2?: number;
+}
+
+export interface ParametrosNewton {
+  funcion: string;
+  x0: number;
+  tolerancia: number;
+  maxIteraciones: number;
+}
+
+export interface ParametrosSecante {
+  funcion: string;
+  x0: number;
+  x1: number;
+  tolerancia: number;
+  maxIteraciones: number;
+}
+
+export interface ParametrosMuller {
+  funcion: string;
+  x0: number;
+  x1: number;
+  x2: number;
+  tolerancia: number;
+  maxIteraciones: number;
+}
+
+export interface ParametrosGauss {
+  matrix: string;
+}
+
+export interface ParametrosGaussSeidel {
+  matrix: string;
+  tolerancia: number;
+  maxIteraciones: number;
+}
+
+export interface ParametrosGaussJordan {
+  matrix: string;
+}
+
+export type ParametrosJob =
+  | ParametrosNewton
+  | ParametrosSecante
+  | ParametrosMuller
+  | ParametrosGauss
+  | ParametrosGaussSeidel
+  | ParametrosGaussJordan;
+
+// ==================== FUNCIONES AUXILIARES ====================
+
 // Convierte la función ingresada por el usuario a una forma compatible con mathjs.
 function convertirFuncion(funcion: string): string {
   let converted = funcion
@@ -18,96 +85,99 @@ function convertirFuncion(funcion: string): string {
   return converted;
 }
 
-function crearMatrizVacia(size: number) {
+function crearMatrizVacia(size: number): string[][] {
   return Array.from({ length: size }, () => Array(size + 1).fill(""));
 }
 
-function CreateJob() {
-  const [method, setMethod] = useState("");
+function validarParentesis(funcion: string): boolean {
+  let balance = 0;
+  for (const char of funcion) {
+    if (char === "(") balance++;
+    if (char === ")") balance--;
+    if (balance < 0) return false;
+  }
+  return balance === 0;
+}
 
-  const [formData, setFormData] = useState<any>({
+function validarCampoNumerico(valor: any, nombre: string): boolean {
+  if (valor === undefined || valor === null || valor === "") {
+    alert(`Ingrese un valor válido para ${nombre}`);
+    return false;
+  }
+  const num = parseFloat(valor);
+  if (isNaN(num)) {
+    alert(`${nombre} debe ser un número válido`);
+    return false;
+  }
+  return true;
+}
+
+// ==================== COMPONENTE PRINCIPAL ====================
+
+function CreateJob() {
+  const navigate = useNavigate();
+  const [method, setMethod] = useState<MetodoNumerico | "">("");
+  const [formData, setFormData] = useState<FormData>({
     tolerancia: 0.0001,
     maxIteraciones: 100,
   });
-
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [jobId, setJobId] = useState<string | null>(null);
-
-  const matrixSize = 3;
-
   const [matrixValues, setMatrixValues] = useState<string[][]>(
     crearMatrizVacia(3),
   );
 
-  const navigate = useNavigate();
-
-  const handleChange = (key: string, value: any) => {
-    setFormData({
-      ...formData,
-      [key]: value,
-    });
+  const handleChange = <K extends keyof FormData>(
+    key: K,
+    value: FormData[K],
+  ): void => {
+    setFormData({ ...formData, [key]: value });
   };
 
-  const insertarEnFuncion = (texto: string) => {
-    setFormData((prev: any) => ({
+  const insertarEnFuncion = (texto: string): void => {
+    setFormData((prev) => ({
       ...prev,
       funcion: (prev.funcion || "") + texto,
     }));
   };
 
-  const handleMatrixChange = (row: number, col: number, value: string) => {
+  const handleMatrixChange = (
+    row: number,
+    col: number,
+    value: string,
+  ): void => {
     const nuevaMatriz = matrixValues.map((fila) => [...fila]);
-
     nuevaMatriz[row][col] = value;
-
     setMatrixValues(nuevaMatriz);
   };
 
-  const convertirMatrizAString = () => {
+  const convertirMatrizAString = (): string => {
     return matrixValues.map((fila) => fila.join(",")).join(";");
   };
 
-  const validarMatriz = () => {
+  const validarMatriz = (): boolean => {
     for (const fila of matrixValues) {
       for (const valor of fila) {
         if (valor === "" || isNaN(parseFloat(valor))) {
           alert("Complete todos los campos de la matriz con valores numéricos");
-
           return false;
         }
       }
     }
-
     return true;
   };
 
-  const validarFuncion = () => {
+  const validarFuncion = (): boolean => {
     if (!formData.funcion || formData.funcion.trim() === "") {
       alert("Ingrese una función");
-
       return false;
     }
-
     return true;
   };
 
-  const validarParentesis = (funcion: string): boolean => {
-    let balance = 0;
-
-    for (const char of funcion) {
-      if (char === "(") balance++;
-      if (char === ")") balance--;
-
-      if (balance < 0) return false;
-    }
-
-    return balance === 0;
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<void> => {
     if (!method) {
       alert("Por favor seleccione un método antes de enviar el job");
-
       return;
     }
 
@@ -115,22 +185,18 @@ function CreateJob() {
 
     if (usaFuncion) {
       if (!validarFuncion()) return;
-
-      const funcionOriginal = formData.funcion;
+      const funcionOriginal = formData.funcion!;
 
       if (!validarParentesis(funcionOriginal)) {
         alert("Error de Sintaxis: Revise la función.");
-
         return;
       }
 
       const caracteresInvalidos = /[^a-zA-Z0-9\+\-\*\/\(\)\^\s\.\,]/g;
-
       if (caracteresInvalidos.test(funcionOriginal)) {
         alert(
           "Error de Sintaxis: La función contiene caracteres no permitidos.",
         );
-
         return;
       }
     }
@@ -138,96 +204,77 @@ function CreateJob() {
     setLoading(true);
 
     try {
-      let parametros: any = {};
+      let parametros: ParametrosJob;
 
-      // NEWTON
       if (method === "newton") {
+        if (!validarCampoNumerico(formData.x0, "x₀")) return;
         parametros = {
-          funcion: convertirFuncion(formData.funcion),
-          x0: parseFloat(formData.x0),
-
-          tolerancia: parseFloat(formData.tolerancia),
-
-          maxIteraciones: parseInt(formData.maxIteraciones),
-        };
-      }
-
-      // SECANTE
-      if (method === "secante") {
+          funcion: convertirFuncion(formData.funcion!),
+          x0: parseFloat(formData.x0 as unknown as string),
+          tolerancia: parseFloat(formData.tolerancia as unknown as string),
+          maxIteraciones: parseInt(
+            formData.maxIteraciones as unknown as string,
+          ),
+        } as ParametrosNewton;
+      } else if (method === "secante") {
+        if (!validarCampoNumerico(formData.x0, "x₀")) return;
+        if (!validarCampoNumerico(formData.x1, "x₁")) return;
         parametros = {
-          funcion: convertirFuncion(formData.funcion),
-
-          x0: parseFloat(formData.x0),
-
-          x1: parseFloat(formData.x1),
-
-          tolerancia: parseFloat(formData.tolerancia),
-
-          maxIteraciones: parseInt(formData.maxIteraciones),
-        };
-      }
-
-      // MULLER
-      if (method === "muller") {
+          funcion: convertirFuncion(formData.funcion!),
+          x0: parseFloat(formData.x0 as unknown as string),
+          x1: parseFloat(formData.x1 as unknown as string),
+          tolerancia: parseFloat(formData.tolerancia as unknown as string),
+          maxIteraciones: parseInt(
+            formData.maxIteraciones as unknown as string,
+          ),
+        } as ParametrosSecante;
+      } else if (method === "muller") {
+        if (!validarCampoNumerico(formData.x0, "x₀")) return;
+        if (!validarCampoNumerico(formData.x1, "x₁")) return;
+        if (!validarCampoNumerico(formData.x2, "x₂")) return;
         parametros = {
-          funcion: convertirFuncion(formData.funcion),
-
-          x0: parseFloat(formData.x0),
-
-          x1: parseFloat(formData.x1),
-
-          x2: parseFloat(formData.x2),
-
-          tolerancia: parseFloat(formData.tolerancia),
-
-          maxIteraciones: parseInt(formData.maxIteraciones),
-        };
-      }
-
-      // GAUSS
-      if (method === "gauss") {
+          funcion: convertirFuncion(formData.funcion!),
+          x0: parseFloat(formData.x0 as unknown as string),
+          x1: parseFloat(formData.x1 as unknown as string),
+          x2: parseFloat(formData.x2 as unknown as string),
+          tolerancia: parseFloat(formData.tolerancia as unknown as string),
+          maxIteraciones: parseInt(
+            formData.maxIteraciones as unknown as string,
+          ),
+        } as ParametrosMuller;
+      } else if (method === "gauss") {
         if (!validarMatriz()) return;
-
+        parametros = { matrix: convertirMatrizAString() } as ParametrosGauss;
+      } else if (method === "gaussSeidel") {
+        if (!validarMatriz()) return;
         parametros = {
           matrix: convertirMatrizAString(),
-        };
-      }
-
-      // GAUSS-SEIDEL
-      if (method === "gaussSeidel") {
+          tolerancia: parseFloat(formData.tolerancia as unknown as string),
+          maxIteraciones: parseInt(
+            formData.maxIteraciones as unknown as string,
+          ),
+        } as ParametrosGaussSeidel;
+      } else if (method === "gaussJordan") {
         if (!validarMatriz()) return;
-
         parametros = {
           matrix: convertirMatrizAString(),
-
-          tolerancia: parseFloat(formData.tolerancia),
-
-          maxIteraciones: parseInt(formData.maxIteraciones),
-        };
-      }
-
-      // GAUSS-JORDAN
-      if (method === "gaussJordan") {
-        if (!validarMatriz()) return;
-
-        parametros = {
-          matrix: convertirMatrizAString(),
-        };
+        } as ParametrosGaussJordan;
+      } else {
+        throw new Error("Método no soportado");
       }
 
       const response = await createJob(method, parametros);
-
       setJobId(response.jobId);
-
       alert(`Job creado con ID: ${response.jobId}`);
-
       navigate(`/job/${response.jobId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error completo:", error);
-
+      const err = error as {
+        response?: { data?: { error?: string; message?: string } };
+      };
       alert(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        err.response?.data?.error ||
+          err.response?.data?.message ||
           "Error al crear el job",
       );
     } finally {
@@ -238,246 +285,383 @@ function CreateJob() {
   const esMetodoMatriz = ["gauss", "gaussSeidel", "gaussJordan"].includes(
     method,
   );
-
   const variables = ["x", "y", "z"];
+  const matrixSize = 3;
+
+  const formatearNombreMetodo = (metodo: MetodoNumerico): string => {
+    const nombres: Record<MetodoNumerico, string> = {
+      newton: "Newton-Raphson",
+      secante: "Secante",
+      muller: "Müller",
+      gauss: "Eliminación Gaussiana",
+      gaussSeidel: "Gauss-Seidel",
+      gaussJordan: "Gauss-Jordan",
+    };
+    return nombres[metodo];
+  };
 
   return (
-    <div className="p-10 max-w-3xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-
-  <h1 className="text-3xl font-bold">
-    Crear Nuevo Job
-  </h1>
-  <button
-    onClick={() => navigate("/")}
-    className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg font-medium transition">
-    Volver
-  </button>
-</div>
-
-      <select
-        value={method}
-        onChange={(e) => {
-          setMethod(e.target.value);
-
-          setFormData({
-            tolerancia: 0.0001,
-            maxIteraciones: 100,
-          });
-
-          setJobId(null);
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Fondo con patrón de cuadrícula */}
+      <div
+        className="fixed inset-0 pointer-events-none opacity-20"
+        style={{
+          backgroundImage: `radial-gradient(circle at 1px 1px, #3b82f6 1px, transparent 1px)`,
+          backgroundSize: "32px 32px",
         }}
-        className="w-full border p-2 rounded mb-4"
-      >
-        <option value="">Seleccione un método</option>
+      />
 
-        <option value="newton">Newton-Raphson</option>
-
-        <option value="secante">Secante</option>
-
-        <option value="muller">Müller</option>
-
-        <option value="gauss">Gauss</option>
-
-        <option value="gaussSeidel">Gauss-Seidel</option>
-
-        <option value="gaussJordan">Gauss-Jordan</option>
-      </select>
-
-      {/* MÉTODOS DE RAÍCES */}
-      {["newton", "secante", "muller"].includes(method) && (
-        <div className="space-y-3">
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header con navegación */}
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <p className="text-sm text-gray-600 mb-1">Función f(x):</p>
+            <h1 className="text-3xl font-bold text-gray-900">PolyMath</h1>
+            <p className="text-gray-500 text-sm mt-1">Crear nuevo job</p>
+          </div>
+          <button
+            onClick={() => navigate("/")}
+            className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200 border border-gray-200"
+          >
+            ← Volver al inicio
+          </button>
+        </div>
 
-            <div className="flex gap-2 mb-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => insertarEnFuncion("exp(x)")}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-              >
-                eˣ
-              </button>
+        {/* Tarjeta principal */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+          {/* Cabecera con gradiente */}
+          <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 px-8 py-6">
+            <h2 className="text-xl font-semibold text-white">Nuevo Job</h2>
+            <p className="text-blue-200 text-sm mt-1">
+              Complete los parámetros del método numérico
+            </p>
+          </div>
 
-              <button
-                type="button"
-                onClick={() => insertarEnFuncion("pi")}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+          <div className="p-8">
+            {/* Selector de método */}
+            <div className="mb-8">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Método numérico
+              </label>
+              <select
+                value={method}
+                onChange={(e) => {
+                  setMethod(e.target.value as MetodoNumerico | "");
+                  setFormData({ tolerancia: 0.0001, maxIteraciones: 100 });
+                  setJobId(null);
+                  setMatrixValues(crearMatrizVacia(3));
+                }}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white"
               >
-                π
-              </button>
-
-              <button
-                type="button"
-                onClick={() => insertarEnFuncion("sin(x)")}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-              >
-                sin(x)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => insertarEnFuncion("cos(x)")}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-              >
-                cos(x)
-              </button>
+                <option value="">Seleccione un método</option>
+                <option value="newton">Newton-Raphson</option>
+                <option value="secante">Secante</option>
+                <option value="muller">Müller</option>
+                <option value="gauss">Gauss</option>
+                <option value="gaussSeidel">Gauss-Seidel</option>
+                <option value="gaussJordan">Gauss-Jordan</option>
+              </select>
             </div>
 
-            <input
-              type="text"
-              value={formData.funcion || ""}
-              placeholder="Ej: x^2 - 4"
-              onChange={(e) => handleChange("funcion", e.target.value)}
-              className="w-full border p-2 rounded font-mono"
-            />
-          </div>
+            {/* MÉTODOS DE RAÍCES */}
+            {["newton", "secante", "muller"].includes(method) && (
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Función f(x)
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => insertarEnFuncion("exp(x)")}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-mono transition"
+                    >
+                      exp(x)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertarEnFuncion("pi")}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-mono transition"
+                    >
+                      pi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertarEnFuncion("sin(x)")}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-mono transition"
+                    >
+                      sin(x)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertarEnFuncion("cos(x)")}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-mono transition"
+                    >
+                      cos(x)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertarEnFuncion("tan(x)")}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-mono transition"
+                    >
+                      tan(x)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertarEnFuncion("log(x)")}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-mono transition"
+                    >
+                      ln(x)
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.funcion || ""}
+                    placeholder="Ingrese la función ej: x^3 - 2x + 1"
+                    onChange={(e) => handleChange("funcion", e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Usa ** para potencias, exp(x) para eˣ, pi para π
+                  </p>
+                </div>
 
-          {method === "newton" && (
-            <input
-              type="number"
-              placeholder="x0"
-              onChange={(e) => handleChange("x0", e.target.value)}
-              className="w-full border p-2 rounded"
-            />
-          )}
+                {method === "newton" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estimación inicial (x₀)
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Ej: 2"
+                      onChange={(e) =>
+                        handleChange("x0", parseFloat(e.target.value))
+                      }
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 transition"
+                    />
+                  </div>
+                )}
 
-          {method === "secante" && (
-            <>
-              <input
-                type="number"
-                placeholder="x0"
-                onChange={(e) => handleChange("x0", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-
-              <input
-                type="number"
-                placeholder="x1"
-                onChange={(e) => handleChange("x1", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-            </>
-          )}
-
-          {method === "muller" && (
-            <>
-              <input
-                type="number"
-                placeholder="x0"
-                onChange={(e) => handleChange("x0", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-
-              <input
-                type="number"
-                placeholder="x1"
-                onChange={(e) => handleChange("x1", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-
-              <input
-                type="number"
-                placeholder="x2"
-                onChange={(e) => handleChange("x2", e.target.value)}
-                className="w-full border p-2 rounded"
-              />
-            </>
-          )}
-        </div>
-      )}
-
-      {/* TOLERANCIA E ITERACIONES */}
-      {["newton", "secante", "muller", "gaussSeidel"].includes(method) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Tolerancia</label>
-
-            <input
-              type="number"
-              step="0.000001"
-              value={formData.tolerancia || ""}
-              onChange={(e) => handleChange("tolerancia", e.target.value)}
-              className="w-full border p-2 rounded"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Máx. Iteraciones
-            </label>
-
-            <input
-              type="number"
-              value={formData.maxIteraciones || ""}
-              onChange={(e) => handleChange("maxIteraciones", e.target.value)}
-              className="w-full border p-2 rounded"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* MATRICES */}
-      {esMetodoMatriz && (
-        <div className="space-y-5 mt-5">
-          <div className="bg-gray-100 p-5 rounded border">
-            <p className="font-semibold mb-4">Matriz aumentada 3x3</p>
-
-            <div className="space-y-3">
-              {matrixValues.map((fila, rowIndex) => (
-                <div
-                  key={rowIndex}
-                  className="flex flex-wrap items-center gap-2"
-                >
-                  {variables.map((variable, colIndex) => (
-                    <div key={colIndex} className="flex items-center gap-2">
+                {method === "secante" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Primera estimación (x₀)
+                      </label>
                       <input
                         type="number"
-                        value={fila[colIndex]}
+                        step="any"
+                        placeholder="Ej: 2"
                         onChange={(e) =>
-                          handleMatrixChange(rowIndex, colIndex, e.target.value)
+                          handleChange("x0", parseFloat(e.target.value))
                         }
-                        className="w-20 border p-2 rounded text-center bg-white"
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 transition"
                       />
-
-                      <span>{variable}</span>
-
-                      {colIndex < variables.length - 1 && <span>+</span>}
                     </div>
-                  ))}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Segunda estimación (x₁)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="Ej: 3"
+                        onChange={(e) =>
+                          handleChange("x1", parseFloat(e.target.value))
+                        }
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 transition"
+                      />
+                    </div>
+                  </>
+                )}
 
-                  <span>=</span>
+                {method === "muller" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Primera estimación (x₀)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="Ej: 0"
+                        onChange={(e) =>
+                          handleChange("x0", parseFloat(e.target.value))
+                        }
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Segunda estimación (x₁)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="Ej: 1"
+                        onChange={(e) =>
+                          handleChange("x1", parseFloat(e.target.value))
+                        }
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tercera estimación (x₂)
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="Ej: 2"
+                        onChange={(e) =>
+                          handleChange("x2", parseFloat(e.target.value))
+                        }
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 transition"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
+            {/* TOLERANCIA E ITERACIONES */}
+            {["newton", "secante", "muller", "gaussSeidel"].includes(
+              method,
+            ) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tolerancia
+                  </label>
                   <input
                     type="number"
-                    value={fila[matrixSize]}
+                    step="0.000001"
+                    value={formData.tolerancia}
                     onChange={(e) =>
-                      handleMatrixChange(rowIndex, matrixSize, e.target.value)
+                      handleChange("tolerancia", parseFloat(e.target.value))
                     }
-                    className="w-20 border p-2 rounded text-center bg-white"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 transition"
                   />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Precisión deseada (menor valor = más exacto)
+                  </p>
                 </div>
-              ))}
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Máximo de iteraciones
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.maxIteraciones}
+                    onChange={(e) =>
+                      handleChange("maxIteraciones", parseInt(e.target.value))
+                    }
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Límite de iteraciones (seguridad)
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* MATRICES */}
+            {esMetodoMatriz && (
+              <div className="mt-5">
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+                  <h3 className="font-semibold text-gray-700 mb-4">
+                    Matriz aumentada 3x3
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-4">
+                    La última columna es el vector de resultados (b)
+                  </p>
+                  <div className="space-y-3">
+                    {matrixValues.map((fila, rowIndex) => (
+                      <div
+                        key={rowIndex}
+                        className="flex flex-wrap items-center gap-2 justify-center"
+                      >
+                        {variables.map((variable, colIndex) => (
+                          <div
+                            key={colIndex}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              type="number"
+                              step="any"
+                              value={fila[colIndex]}
+                              onChange={(e) =>
+                                handleMatrixChange(
+                                  rowIndex,
+                                  colIndex,
+                                  e.target.value,
+                                )
+                              }
+                              className="w-20 border border-gray-200 rounded-lg p-2 text-center focus:ring-2 focus:ring-blue-500 transition"
+                              placeholder="0"
+                            />
+                            <span className="font-medium">{variable}</span>
+                            {colIndex < variables.length - 1 && (
+                              <span className="text-gray-400">+</span>
+                            )}
+                          </div>
+                        ))}
+                        <span className="font-bold text-gray-500 mx-2">=</span>
+                        <input
+                          type="number"
+                          step="any"
+                          value={fila[matrixSize]}
+                          onChange={(e) =>
+                            handleMatrixChange(
+                              rowIndex,
+                              matrixSize,
+                              e.target.value,
+                            )
+                          }
+                          className="w-20 border border-gray-200 rounded-lg p-2 text-center focus:ring-2 focus:ring-blue-500 transition"
+                          placeholder="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-4 text-center">
+                    Ejemplo: 2x + y - z = 8 → [2, 1, -1, 8]
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Botón de envío */}
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="mt-8 w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+            >
+              {loading ? "Procesando..." : "Enviar Job"}
+            </button>
+
+            {/* Mensaje de éxito */}
+            {jobId && (
+              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                <p className="text-green-800 text-sm">
+                  Job creado exitosamente
+                </p>
+                <p className="font-mono text-xs text-green-600 mt-1 break-all">
+                  ID: {jobId}
+                </p>
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="mt-6 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-gray-400"
-      >
-        {loading ? "Creando..." : "Enviar Job"}
-      </button>
-
-      {jobId && (
-        <div className="mt-4 p-3 bg-blue-100 rounded">
+        {/* Footer */}
+        <footer className="mt-8 text-center text-gray-400 text-sm py-4 border-t border-gray-200">
           <p>
-            Job creado: <code>{jobId}</code>
+            PolyMath - Métodos Numéricos | Arquitectura Híbrida con Docker,
+            Redis y SQL Server
           </p>
-        </div>
-      )}
+        </footer>
+      </div>
     </div>
   );
 }
