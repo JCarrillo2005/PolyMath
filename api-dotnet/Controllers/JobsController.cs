@@ -187,7 +187,73 @@ namespace api_dotnet.Controllers
 
             _logger.LogInformation("Endpoint (GET api/jobs/{JobId}/iterations) consumido", jobId);
             return Ok(iteraciones);
-        }    
+        }
+
+        // GET api/stats/jobs-by-status
+        [HttpGet("stats/jobs-by-status")]
+        public async Task<IActionResult> GetJobsByStatus()
+        {
+            var jobs = await _context.Jobs.ToListAsync();
+
+            var stats = jobs
+                .GroupBy(j => j.Estado)
+                .Select(g => new {
+                    estado = g.Key,
+                    cantidad = g.Count()
+                })
+                .OrderBy(s => s.estado);
+
+            return Ok(stats);
+        }
+
+        // GET api/stats/jobs-by-method
+        [HttpGet("stats/jobs-by-method")]
+        public async Task<IActionResult> GetJobsByMethod()
+        {
+            var jobs = await _context.Jobs.ToListAsync();
+
+            var stats = jobs
+                .GroupBy(j => j.Metodo)
+                .Select(g => new {
+                    metodo = g.Key,
+                    cantidad = g.Count()
+                })
+                .OrderByDescending(s => s.cantidad);
+
+            return Ok(stats);
+        }
+
+        // GET api/stats/convergence
+        [HttpGet("stats/convergence")]
+        public async Task<IActionResult> GetConvergenceStats()
+        {
+
+            var allJobs = await _context.Jobs.ToListAsync();
+            var totalJobs = allJobs.Count;
+
+            // Jobs DONE 
+            var jobsDone = allJobs.Where(j => j.Estado == "DONE" && j.Converged.HasValue).ToList();
+            var convergedJobs = jobsDone.Count(j => j.Converged == true);
+            var tasaConvergencia = totalJobs > 0 ? (double)convergedJobs / totalJobs * 100 : 0;
+
+             //Promedio de iteraciones
+            var iteraciones = await _context.JobIterations.ToListAsync();
+            var promedioIteraciones = iteraciones
+                .GroupBy(i => i.JobId)
+                .Select(g => g.Count())
+                .DefaultIfEmpty(0)
+                .Average();
+
+            return Ok(new
+            {
+                tasaConvergencia = Math.Round(tasaConvergencia, 2),
+                promedioIteraciones = Math.Round(promedioIteraciones, 2),
+                totalJobs = totalJobs,
+                convergedJobs = convergedJobs,
+                failedJobs = allJobs.Count(j => j.Estado == "FAILED")
+            });
+    
+        }
 
     }
 
