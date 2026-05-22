@@ -15,12 +15,14 @@ namespace api_dotnet.Controllers
     public class JobsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly IConnectionMultiplexer _redis;  
+        private readonly IConnectionMultiplexer _redis;
+        private readonly ILogger<JobsController> _logger;
 
-        public JobsController(ApplicationDbContext context, IConnectionMultiplexer redis) 
+        public JobsController(ApplicationDbContext context, IConnectionMultiplexer redis, ILogger<JobsController> logger) 
         {
             _context = context;
-            _redis = redis; 
+            _redis = redis;
+            _logger = logger; 
         }
 
         // POST api/jobs
@@ -49,7 +51,9 @@ namespace api_dotnet.Controllers
                 // Encolar el Job en Redis
                 var db = _redis.GetDatabase();
                 await db.ListRightPushAsync("job_queue", job.JobId);
-                Console.WriteLine($"Job {job.JobId} encolado en Redis");
+                // Log con información
+                _logger.LogInformation("Endpoint (POST api/jobs) consumido");
+                _logger.LogInformation("Job {JobId} creado y encolado en Redis", job.JobId);
 
                 return Ok(new
                 {
@@ -60,6 +64,7 @@ namespace api_dotnet.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error al crear job");
                 return BadRequest(new
                 {
                     message = "Error al crear el job",
@@ -74,12 +79,18 @@ namespace api_dotnet.Controllers
         [HttpGet("{jobId}")]
         public async Task<IActionResult> GetJob(string jobId)
         {
+            _logger.LogInformation("Consultando job {JobId}", jobId);
+
             var jobEntity = await _context.Jobs
                 .Where(j => j.JobId == jobId)
                 .FirstOrDefaultAsync();
 
             if (jobEntity == null)
+            {
+                _logger.LogWarning("Job {JobId} no encontrado", jobId);
                 return NotFound(new { error = "Job no encontrado" });
+            }
+
 
             var jobResponse = new JobResponseDTO
             {
@@ -95,7 +106,7 @@ namespace api_dotnet.Controllers
                 ParametrosJson = jobEntity.ParametrosJson, 
                 Funcion = ExtraerFuncionDeParametros(jobEntity.ParametrosJson)
             };
-
+            _logger.LogInformation("Endpoint (GET api/jobs/{JobId}) consumido", jobId);
             return Ok(jobResponse);
         }
 
@@ -131,7 +142,7 @@ namespace api_dotnet.Controllers
                 ParametrosJson = j.ParametrosJson, 
                 Funcion = ExtraerFuncionDeParametros(j.ParametrosJson) 
             }).ToList();
-
+            _logger.LogInformation("Endpoint (GET api/jobs) consumido");
             return Ok(jobsResponse);
         }
 
@@ -174,6 +185,7 @@ namespace api_dotnet.Controllers
             if (!iteraciones.Any())
                 return NotFound(new { message = "No hay iteraciones para este job" });
 
+            _logger.LogInformation("Endpoint (GET api/jobs/{JobId}/iterations) consumido", jobId);
             return Ok(iteraciones);
         }    
 
