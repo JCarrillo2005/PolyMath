@@ -69,6 +69,75 @@ export type ParametrosJob =
 
 // ==================== FUNCIONES AUXILIARES ====================
 
+// Función para validar la función matemática
+function validarFuncion(funcion: string): { isValid: boolean; error?: string } {
+  if (!funcion || funcion.trim() === "") {
+    return { isValid: false, error: "La función no puede estar vacía" };
+  }
+
+  const funcionTrim = funcion.trim();
+
+  // Caracteres permitidos: números, operadores, x, funciones matemáticas, espacios, paréntesis
+  const patronPermitido = /^[a-zA-Z0-9+\-*/^()., πe\s]+$/;
+  if (!patronPermitido.test(funcionTrim)) {
+    return {
+      isValid: false,
+      error: "La función contiene caracteres no permitidos",
+    };
+  }
+
+  // Validar paréntesis balanceados
+  let balance = 0;
+  for (const char of funcionTrim) {
+    if (char === "(") balance++;
+    if (char === ")") balance--;
+    if (balance < 0) {
+      return { isValid: false, error: "Paréntesis no balanceados" };
+    }
+  }
+  if (balance !== 0) {
+    return { isValid: false, error: "Paréntesis no balanceados" };
+  }
+
+  // Lista de funciones matemáticas válidas
+  const funcionesValidas = [
+    "sin",
+    "cos",
+    "tan",
+    "asin",
+    "acos",
+    "atan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "exp",
+    "log",
+    "ln",
+    "sqrt",
+    "abs",
+    "pi",
+    "e",
+  ];
+
+  // Detectar palabras que no sean funciones válidas (como "ww")
+  const palabras = funcionTrim.match(/[a-zA-Z]+/g);
+  if (palabras) {
+    for (const palabra of palabras) {
+      if (
+        !funcionesValidas.includes(palabra.toLowerCase()) &&
+        palabra !== "x"
+      ) {
+        return {
+          isValid: false,
+          error: `"${palabra}" no es una función matemática válida`,
+        };
+      }
+    }
+  }
+
+  return { isValid: true };
+}
+
 // Convierte la función ingresada por el usuario a una forma compatible con mathjs.
 function convertirFuncion(funcion: string): string {
   let converted = funcion
@@ -80,7 +149,7 @@ function convertirFuncion(funcion: string): string {
 
   converted = converted.replace(/e\*\*-([a-zA-Z0-9]+)/g, "exp(-$1)");
   converted = converted.replace(/e\^-([a-zA-Z0-9]+)/g, "exp(-$1)");
-  converted = converted.replace(/e\^([a-zA-Z0-9\(\)]+)/g, "exp($1)");
+  converted = converted.replace(/e\^([a-zA-Z0-9()]+)/g, "exp($1)");
 
   return converted;
 }
@@ -99,12 +168,16 @@ function validarParentesis(funcion: string): boolean {
   return balance === 0;
 }
 
-function validarCampoNumerico(valor: any, nombre: string): boolean {
+function validarCampoNumerico(
+  valor: string | number | null | undefined,
+  nombre: string,
+): boolean {
   if (valor === undefined || valor === null || valor === "") {
     alert(`Ingrese un valor válido para ${nombre}`);
     return false;
   }
-  const num = parseFloat(valor);
+
+  const num = typeof valor === "number" ? valor : parseFloat(valor);
   if (isNaN(num)) {
     alert(`${nombre} debe ser un número válido`);
     return false;
@@ -120,7 +193,9 @@ function CreateJob() {
   const [formData, setFormData] = useState<FormData>({
     tolerancia: 0.0001,
     maxIteraciones: 100,
+    funcion: "",
   });
+  const [funcionError, setFuncionError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [matrixValues, setMatrixValues] = useState<string[][]>(
@@ -134,11 +209,37 @@ function CreateJob() {
     setFormData({ ...formData, [key]: value });
   };
 
+  // Manejar cambio de función con validación en tiempo real
+  const handleFuncionChange = (value: string): void => {
+    setFormData({ ...formData, funcion: value });
+
+    // Validar mientras escribe
+    if (value.trim() !== "") {
+      const validation = validarFuncion(value);
+      if (!validation.isValid) {
+        setFuncionError(validation.error || "Función inválida");
+      } else {
+        setFuncionError(null);
+      }
+    } else {
+      setFuncionError(null);
+    }
+  };
+
   const insertarEnFuncion = (texto: string): void => {
+    const nuevaFuncion = (formData.funcion || "") + texto;
     setFormData((prev) => ({
       ...prev,
-      funcion: (prev.funcion || "") + texto,
+      funcion: nuevaFuncion,
     }));
+
+    // Validar después de insertar
+    const validation = validarFuncion(nuevaFuncion);
+    if (!validation.isValid && nuevaFuncion.trim() !== "") {
+      setFuncionError(validation.error || "Función inválida");
+    } else {
+      setFuncionError(null);
+    }
   };
 
   const handleMatrixChange = (
@@ -167,14 +268,6 @@ function CreateJob() {
     return true;
   };
 
-  const validarFuncion = (): boolean => {
-    if (!formData.funcion || formData.funcion.trim() === "") {
-      alert("Ingrese una función");
-      return false;
-    }
-    return true;
-  };
-
   const handleSubmit = async (): Promise<void> => {
     if (!method) {
       alert("Por favor seleccione un método antes de enviar el job");
@@ -184,19 +277,15 @@ function CreateJob() {
     const usaFuncion = ["newton", "secante", "muller"].includes(method);
 
     if (usaFuncion) {
-      if (!validarFuncion()) return;
-      const funcionOriginal = formData.funcion!;
-
-      if (!validarParentesis(funcionOriginal)) {
-        alert("Error de Sintaxis: Revise la función.");
+      // Validar función con la nueva validación
+      if (!formData.funcion || formData.funcion.trim() === "") {
+        alert("Ingrese una función");
         return;
       }
 
-      const caracteresInvalidos = /[^a-zA-Z0-9\+\-\*\/\(\)\^\s\.\,]/g;
-      if (caracteresInvalidos.test(funcionOriginal)) {
-        alert(
-          "Error de Sintaxis: La función contiene caracteres no permitidos.",
-        );
+      const validation = validarFuncion(formData.funcion);
+      if (!validation.isValid) {
+        alert(validation.error || "La función ingresada no es válida");
         return;
       }
     }
@@ -300,6 +389,16 @@ function CreateJob() {
     return nombres[metodo];
   };
 
+  const estaDeshabilitado = (): boolean => {
+    if (loading) return true;
+    const usaFuncion = ["newton", "secante", "muller"].includes(method);
+    if (usaFuncion) {
+      if (funcionError) return true;
+      if (!formData.funcion || formData.funcion.trim() === "") return true;
+    }
+    return false;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Fondo con patrón de cuadrícula */}
@@ -346,7 +445,12 @@ function CreateJob() {
                 value={method}
                 onChange={(e) => {
                   setMethod(e.target.value as MetodoNumerico | "");
-                  setFormData({ tolerancia: 0.0001, maxIteraciones: 100 });
+                  setFormData({
+                    tolerancia: 0.0001,
+                    maxIteraciones: 100,
+                    funcion: "",
+                  });
+                  setFuncionError(null);
                   setJobId(null);
                   setMatrixValues(crearMatrizVacia(3));
                 }}
@@ -417,9 +521,16 @@ function CreateJob() {
                     type="text"
                     value={formData.funcion || ""}
                     placeholder="Ingrese la función ej: x^3 - 2x + 1"
-                    onChange={(e) => handleChange("funcion", e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                    onChange={(e) => handleFuncionChange(e.target.value)}
+                    className={`w-full border rounded-xl px-4 py-3 font-mono focus:ring-2 focus:ring-blue-500 transition ${
+                      funcionError
+                        ? "border-red-500 bg-red-50"
+                        : "border-gray-200"
+                    }`}
                   />
+                  {funcionError && (
+                    <p className="text-xs text-red-500 mt-1">{funcionError}</p>
+                  )}
                   <p className="text-xs text-gray-500 mt-2">
                     Usa ** para potencias, exp(x) para eˣ, pi para π
                   </p>
@@ -634,8 +745,8 @@ function CreateJob() {
             {/* Botón de envío */}
             <button
               onClick={handleSubmit}
-              disabled={loading}
-              className="mt-8 w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+              disabled={estaDeshabilitado()}
+              className="mt-8 w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               {loading ? "Procesando..." : "Enviar Job"}
             </button>

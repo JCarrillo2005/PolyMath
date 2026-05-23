@@ -29,12 +29,6 @@ export interface Job {
   parametrosJson?: string;
 }
 
-export interface Filtros {
-  metodo: MetodoNumerico | "Todos";
-  estado: EstadoJob | "Todos";
-  convergencia: ConvergenciaFiltro;
-}
-
 // ==================== FUNCIÓN PARA OBTENER COLOR DEL ESTADO ====================
 
 const obtenerColorEstado = (estado: EstadoJob): string => {
@@ -79,6 +73,10 @@ function Home() {
   const [convergenciaFiltro, setConvergenciaFiltro] =
     useState<ConvergenciaFiltro>("Todos");
 
+  // Paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const jobsPorPagina = 10;
+
   // Cargar jobs al montar el componente
   useEffect(() => {
     cargarJobs();
@@ -90,6 +88,7 @@ function Home() {
       const data: Job[] = await getAllJobs();
       setJobs(data);
       setJobsFiltrados(data);
+      setPaginaActual(1); // Resetear paginación
     } catch (error) {
       console.error("Error cargando jobs:", error);
     } finally {
@@ -100,23 +99,21 @@ function Home() {
   const aplicarFiltros = (): void => {
     let filtrados: Job[] = [...jobs];
 
-    // Filtrar por método
     if (metodoFiltro !== "Todos") {
       filtrados = filtrados.filter((job) => job.metodo === metodoFiltro);
     }
 
-    // Filtrar por estado
     if (estadoFiltro !== "Todos") {
       filtrados = filtrados.filter((job) => job.estado === estadoFiltro);
     }
 
-    // Filtrar por convergencia
     if (convergenciaFiltro !== "Todos") {
       const convergio = convergenciaFiltro === "Convergió";
       filtrados = filtrados.filter((job) => job.converged === convergio);
     }
 
     setJobsFiltrados(filtrados);
+    setPaginaActual(1); // Resetear a primera página al filtrar
   };
 
   const limpiarFiltros = (): void => {
@@ -124,11 +121,18 @@ function Home() {
     setEstadoFiltro("Todos");
     setConvergenciaFiltro("Todos");
     setJobsFiltrados(jobs);
+    setPaginaActual(1);
   };
+
+  // Calcular jobs a mostrar en la página actual
+  const indexUltimo = paginaActual * jobsPorPagina;
+  const indexPrimero = indexUltimo - jobsPorPagina;
+  const jobsPaginados = jobsFiltrados.slice(indexPrimero, indexUltimo);
+  const totalPaginas = Math.ceil(jobsFiltrados.length / jobsPorPagina);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Fondo con patrón de cuadrícula (estilo matemático) */}
+      {/* Fondo con patrón de cuadrícula */}
       <div
         className="fixed inset-0 pointer-events-none opacity-20"
         style={{
@@ -141,7 +145,6 @@ function Home() {
         {/* HEADER - Hero section con gradiente */}
         <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 rounded-2xl shadow-2xl mb-8 overflow-hidden">
           <div className="relative px-8 py-12">
-            {/* Efecto de fondo decorativo */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/10 rounded-full blur-2xl" />
 
@@ -178,15 +181,64 @@ function Home() {
                     </span>
                   </div>
                 </div>
-                <Link
-                  to="/create"
-                  className="group relative overflow-hidden bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg transition-all duration-200 transform hover:-translate-y-0.5"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    <span className="text-xl">+</span>
-                    Crear nuevo Job
-                  </span>
-                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tarjetas de acceso rápido */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Link
+            to="/create"
+            className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Nuevo</p>
+                <p className="text-xl font-bold">+ Crear Job</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            to="/stats"
+            className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Análisis</p>
+                <p className="text-xl font-bold">Estadísticas</p>
+              </div>
+            </div>
+          </Link>
+          <Link
+            to="/compare"
+            className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Comparación</p>
+                <p className="text-xl font-bold">Métodos de Raices</p>
+              </div>
+            </div>
+          </Link>
+          <Link
+            to="/compare/history"
+            className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Historial</p>
+                <p className="text-xl font-bold">Comparaciones</p>
+              </div>
+            </div>
+          </Link>
+
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Total Jobs</p>
+                <p className="text-xl font-bold">{jobs.length} jobs</p>
               </div>
             </div>
           </div>
@@ -310,84 +362,113 @@ function Home() {
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
-                      Método
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
-                      Estado
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
-                      Resultado
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
-                      Convergió
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
-                      Tiempo
-                    </th>
-                    <th className="px-6 py-4 text-left font-semibold text-gray-600">
-                      Fecha
-                    </th>
-                    <th className="px-6 py-4 text-center font-semibold text-gray-600">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {jobsFiltrados.map((job) => (
-                    <tr
-                      key={job.jobId}
-                      className="hover:bg-blue-50/30 transition-colors duration-150"
-                    >
-                      <td className="px-6 py-4 font-medium capitalize">
-                        {formatearNombreMetodo(job.metodo)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${obtenerColorEstado(job.estado)}`}
-                        >
-                          {job.estado}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs max-w-xs truncate">
-                        {job.resultado || "-"}
-                      </td>
-                      <td className="px-6 py-4">
-                        {job.converged === true ? (
-                          <span className="text-green-600 font-medium">Sí</span>
-                        ) : job.converged === false ? (
-                          <span className="text-red-600 font-medium">No</span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        {job.tiempoEjecucionMs
-                          ? `${job.tiempoEjecucionMs} ms`
-                          : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 text-xs">
-                        {job.creadoEn
-                          ? new Date(job.creadoEn).toLocaleString()
-                          : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <Link
-                          to={`/job/${job.jobId}`}
-                          className="inline-flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
-                        >
-                          Ver detalle
-                        </Link>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-600">
+                        Método
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-600">
+                        Estado
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-600">
+                        Resultado
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-600">
+                        Convergió
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-600">
+                        Tiempo
+                      </th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-600">
+                        Fecha
+                      </th>
+                      <th className="px-6 py-4 text-center font-semibold text-gray-600">
+                        Acciones
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {jobsPaginados.map((job) => (
+                      <tr
+                        key={job.jobId}
+                        className="hover:bg-blue-50/30 transition-colors duration-150"
+                      >
+                        <td className="px-6 py-4 font-medium capitalize">
+                          {formatearNombreMetodo(job.metodo)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${obtenerColorEstado(job.estado)}`}
+                          >
+                            {job.estado}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-mono text-xs max-w-xs truncate">
+                          {job.resultado || "-"}
+                        </td>
+                        <td className="px-6 py-4">
+                          {job.converged === true ? (
+                            <span className="text-green-600 font-medium">
+                              Sí
+                            </span>
+                          ) : job.converged === false ? (
+                            <span className="text-red-600 font-medium">No</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {job.tiempoEjecucionMs
+                            ? `${job.tiempoEjecucionMs} ms`
+                            : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-gray-500 text-xs">
+                          {job.creadoEn
+                            ? new Date(job.creadoEn).toLocaleString()
+                            : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <Link
+                            to={`/job/${job.jobId}`}
+                            className="inline-flex items-center gap-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
+                          >
+                            Ver detalle
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* PAGINACIÓN */}
+              {totalPaginas > 1 && (
+                <div className="flex justify-center items-center gap-4 py-4 border-t border-gray-100">
+                  <button
+                    onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                    disabled={paginaActual === 1}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    ← Anterior
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Página {paginaActual} de {totalPaginas}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setPaginaActual((p) => Math.min(totalPaginas, p + 1))
+                    }
+                    disabled={paginaActual === totalPaginas}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -397,7 +478,7 @@ function Home() {
             PolyMath - Métodos Numéricos | Arquitectura Híbrida con Docker,
             Redis y SQL Server
           </p>
-          <p className="mt-1">© 2025 - Todos los derechos reservados</p>
+          <p className="mt-1">© 2026 - Todos los derechos reservados</p>
         </footer>
       </div>
     </div>

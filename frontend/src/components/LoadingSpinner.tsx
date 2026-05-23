@@ -1,4 +1,3 @@
-// frontend/src/components/LoadingSpinner.tsx
 interface LoadingSpinnerProps {
   message?: string;
   size?: "sm" | "md" | "lg";

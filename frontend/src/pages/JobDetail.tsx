@@ -47,7 +47,7 @@ export interface Iteracion {
   vectorX?: string | number[];
   erroresIndividuales?: string | number[];
   error?: number;
-  xi?: number;
+  xi?: number | string;
   xn?: number;
   x?: number;
 }
@@ -113,6 +113,7 @@ function convertirALaTeX(funcion: string): string {
     .replace(/log/g, "\\ln");
 }
 
+// Función para formatear números reales
 function formatNumber(
   value: number | string | undefined | null,
   decimals: number = 8,
@@ -121,6 +122,100 @@ function formatNumber(
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return String(value);
   return num.toFixed(decimals);
+}
+
+// Función para formatear números complejos (para mostrar en UI)
+function formatComplexNumber(
+  value: string | number | null | undefined,
+): string {
+  if (value === null || value === undefined) return "-";
+
+  const strValue = String(value);
+
+  // Detectar formato complejo: "0.5707402802992483-1.1450022192641574j" o "(0.57-1.14j)"
+  // También detectar "-1j" o "1j"
+  const complexMatch = strValue.match(
+    /\(?([+-]?\d*\.?\d*)?([+-]?\d*\.?\d*)j\)?/,
+  );
+
+  if (complexMatch || strValue.includes("j")) {
+    // Extraer parte real e imaginaria
+    let real = 0;
+    let imag = 0;
+
+    // Manejar formato como "-1j" (solo parte imaginaria)
+    if (strValue.match(/^[+-]?\d*\.?\d*j$/)) {
+      imag = parseFloat(strValue.replace("j", ""));
+      if (isNaN(imag)) imag = strValue.startsWith("-") ? -1 : 1;
+      real = 0;
+    }
+    // Manejar formato con paréntesis
+    else if (strValue.startsWith("(") && strValue.endsWith(")")) {
+      const inner = strValue.slice(1, -1);
+      const parts = inner.split(/[+-](?=[^+-]*j)/);
+      if (parts.length >= 2) {
+        real = parseFloat(parts[0]);
+        const imagPart = inner.includes("+")
+          ? inner.split("+")[1]?.replace("j", "")
+          : inner.split("-")[1]?.replace("j", "");
+        imag = parseFloat(imagPart);
+        if (inner.includes("-") && !inner.startsWith("-")) imag = -imag;
+      } else if (inner.includes("j")) {
+        imag = parseFloat(inner.replace("j", ""));
+        real = 0;
+      }
+    } else {
+      // Manejar formato "a+bj" o "a-bj"
+      const match = strValue.match(/^([+-]?\d*\.?\d*)([+-]\d*\.?\d*j)$/);
+      if (match) {
+        real = parseFloat(match[1]);
+        const imagStr = match[2].replace("j", "");
+        imag = parseFloat(imagStr);
+      }
+    }
+
+    // Formatear la salida
+    if (isNaN(real)) real = 0;
+    if (isNaN(imag)) imag = 0;
+
+    if (Math.abs(real) < 1e-10) real = 0;
+    if (Math.abs(imag) < 1e-10) imag = 0;
+
+    if (real === 0 && imag === 0) return "0";
+    if (real === 0) return `${imag.toFixed(8)}i`;
+    if (imag === 0) return real.toFixed(8);
+    const sign = imag > 0 ? "+" : "-";
+    return `${real.toFixed(8)} ${sign} ${Math.abs(imag).toFixed(8)}i`;
+  }
+
+  // Si es número real
+  const num = parseFloat(strValue);
+  if (!isNaN(num)) {
+    return num.toFixed(8);
+  }
+
+  return strValue;
+}
+
+// Función para extraer valor numérico (para gráficas)
+function extractNumericValue(
+  value: number | string | null | undefined,
+): number | null {
+  if (value === null || value === undefined) return null;
+
+  const strValue = String(value);
+
+  // Si es complejo, extraer parte real para la gráfica de error
+  if (strValue.includes("j")) {
+    const match = strValue.match(/^([+-]?\d*\.?\d*)/);
+    if (match && match[1] && match[1] !== "") {
+      return parseFloat(match[1]);
+    }
+    return 0;
+  }
+
+  const num = parseFloat(strValue);
+  return isNaN(num) ? null : num;
 }
 
 function convertirMatrizAEcuaciones(parametrosJson: string): string {
@@ -365,15 +460,21 @@ function JobDetail() {
 
   const convergenceData: DatosConvergencia[] =
     extraerDatosConvergencia(iterations);
-  const chartData: ChartDataPoint[] = iterations.map((item) => ({
-    iteracion: item.iteracion,
-    error: item.error || 0,
-    raiz: item.xi,
-    raizTexto: item.xi ? formatNumber(item.xi) : "-",
-  }));
+
+  // Para gráfica: extraer valor numérico (parte real si es complejo)
+  const chartData: ChartDataPoint[] = iterations.map((item) => {
+    const numericValue = extractNumericValue(item.xi);
+    return {
+      iteracion: item.iteracion,
+      error: item.error || 0,
+      raiz: numericValue !== null ? numericValue : undefined,
+      raizTexto: formatComplexNumber(item.xi),
+    };
+  });
 
   const formatRaiz = (item: Iteracion): string => {
-    if (item.xi !== undefined && item.xi !== null) return formatNumber(item.xi);
+    if (item.xi !== undefined && item.xi !== null)
+      return formatComplexNumber(item.xi);
     if (item.xn !== undefined && item.xn !== null) return formatNumber(item.xn);
     if (item.x !== undefined && item.x !== null) return formatNumber(item.x);
     if (item.vectorX) {
@@ -383,7 +484,7 @@ function JobDetail() {
             ? JSON.parse(item.vectorX)
             : item.vectorX;
         if (Array.isArray(vector)) {
-          return `[${vector.map((v) => formatNumber(v)).join(", ")}]`;
+          return `[${vector.map((v) => formatComplexNumber(v)).join(", ")}]`;
         }
       } catch {}
     }
@@ -531,7 +632,7 @@ function JobDetail() {
                   Resultado final
                 </p>
                 <p className="font-mono text-sm text-gray-800 mt-1 break-all">
-                  {job.resultado || "-"}
+                  {formatComplexNumber(job.resultado)}
                 </p>
               </div>
             </div>
@@ -608,7 +709,7 @@ function JobDetail() {
                       Raíz encontrada
                     </h3>
                     <p className="font-mono text-2xl font-bold text-green-600 text-center">
-                      {formatNumber(job.resultado, 8)}
+                      {formatComplexNumber(job.resultado)}
                     </p>
                   </div>
                 )}
