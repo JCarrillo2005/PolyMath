@@ -284,6 +284,7 @@ namespace api_dotnet.Controllers
                     Tolerancia = request.Tolerancia,
                     MaxIteraciones = request.MaxIteraciones,
                     MetodosUsados = JsonSerializer.Serialize(request.Metodos),
+                    Tipo = "raices",
                     CreadoEn = DateTime.UtcNow
                 };
 
@@ -418,6 +419,7 @@ namespace api_dotnet.Controllers
             try
             {
                 var comparisons = await _context.Comparisons
+                    .Where(c => c.Tipo == "raices" || c.Tipo == null) // Filtrar solo raíces.
                     .OrderByDescending(c => c.CreadoEn)
                     .Select(c => new
                     {
@@ -445,7 +447,7 @@ namespace api_dotnet.Controllers
                     })
                     .ToListAsync();
 
-                _logger.LogInformation("Endpoint (GET api/compare/history) consumido - {Count} comparaciones encontradas", comparisons.Count);
+                _logger.LogInformation("Endpoint (GET api/compare/history) consumido - {Count} comparaciones de raíces encontradas", comparisons.Count);
                 return Ok(comparisons);
             }
             catch (Exception ex)
@@ -462,7 +464,7 @@ namespace api_dotnet.Controllers
             try
             {
                 var comparison = await _context.Comparisons
-                    .Where(c => c.ComparisonId == comparisonId)
+                    .Where(c => c.ComparisonId == comparisonId && (c.Tipo == "raices" || c.Tipo == null))
                     .Select(c => new
                     {
                         c.ComparisonId,
@@ -750,27 +752,26 @@ namespace api_dotnet.Controllers
                 var comparisons = await _context.Comparisons
                     .Where(c => c.Tipo == "matrices")
                     .OrderByDescending(c => c.CreadoEn)
-                    .Select(c => new
+                    .Select(c => new MatrixComparisonHistoryDTO
                     {
-                        c.ComparisonId,
-                        MatrizOriginal = "", // Se llenará después
-                        c.CreadoEn,
+                        ComparisonId = c.ComparisonId,
+                        CreadoEn = c.CreadoEn,
                         Jobs = _context.Jobs
                             .Where(j => j.ComparisonId == c.ComparisonId)
-                            .Select(j => new
+                            .Select(j => new MatrixHistoryJobDTO
                             {
-                                j.JobId,
-                                j.Metodo,
-                                j.Estado,
-                                j.Converged,
-                                j.Resultado,
-                                j.TiempoEjecucionMs
+                                JobId = j.JobId,
+                                Metodo = j.Metodo,
+                                Estado = j.Estado,
+                                Converged = j.Converged == true,
+                                Resultado = j.Resultado,
+                                TiempoEjecucionMs = j.TiempoEjecucionMs
                             })
                             .ToList()
                     })
                     .ToListAsync();
 
-                // Llenar MatrizOriginal para cada comparación
+                // Obtener las matrices originales
                 foreach (var comp in comparisons)
                 {
                     var firstJob = comp.Jobs.FirstOrDefault();
@@ -784,8 +785,7 @@ namespace api_dotnet.Controllers
                         if (jobEntity != null)
                         {
                             var parametros = JsonSerializer.Deserialize<Dictionary<string, object>>(jobEntity);
-                            comp.GetType().GetProperty("MatrizOriginal")?.SetValue(comp,
-                                parametros?.GetValueOrDefault("matrix")?.ToString() ?? "");
+                            comp.MatrizOriginal = parametros?.GetValueOrDefault("matrix")?.ToString() ?? "";
                         }
                     }
                 }
@@ -799,6 +799,8 @@ namespace api_dotnet.Controllers
                 return StatusCode(500, new { error = "Error al obtener el historial" });
             }
         }
+
+
     }
 
 }
