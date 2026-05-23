@@ -203,6 +203,7 @@ namespace api_dotnet.Controllers
                 })
                 .OrderBy(s => s.estado);
 
+            _logger.LogInformation("Endpoint (GET api/stats/jobs-by-status) consumido");
             return Ok(stats);
         }
 
@@ -220,6 +221,7 @@ namespace api_dotnet.Controllers
                 })
                 .OrderByDescending(s => s.cantidad);
 
+            _logger.LogInformation("Endpoint (GET api/stats/jobs-by-method) consumido");
             return Ok(stats);
         }
 
@@ -244,6 +246,7 @@ namespace api_dotnet.Controllers
                 .DefaultIfEmpty(0)
                 .Average();
 
+            _logger.LogInformation("Endpoint (GET api/stats/convergence) consumido");
             return Ok(new
             {
                 tasaConvergencia = Math.Round(tasaConvergencia, 2),
@@ -255,6 +258,547 @@ namespace api_dotnet.Controllers
     
         }
 
+        // POST api/compare/roots
+        [HttpPost("compare/roots")]
+        public async Task<IActionResult> CompareRoots([FromBody] CompareRootsRequestDTO request)
+        {
+            try
+            {
+                // Validar
+                if (request.Metodos == null || request.Metodos.Count == 0)
+                    return BadRequest(new { error = "Debe seleccionar al menos un método" });
+
+                var metodosValidos = new[] { "newton", "secante", "muller" };
+                var metodosInvalidos = request.Metodos.Where(m => !metodosValidos.Contains(m)).ToList();
+                if (metodosInvalidos.Any())
+                    return BadRequest(new { error = $"Métodos inválidos: {string.Join(",", metodosInvalidos)}" });
+
+                // Crear Comparison
+                var comparison = new Comparison
+                {
+                    ComparisonId = Guid.NewGuid().ToString(),
+                    Funcion = request.Funcion,
+                    X0 = request.X0,
+                    X1 = request.X1,
+                    X2 = request.X2,
+                    Tolerancia = request.Tolerancia,
+                    MaxIteraciones = request.MaxIteraciones,
+                    MetodosUsados = JsonSerializer.Serialize(request.Metodos),
+                    CreadoEn = DateTime.UtcNow
+                };
+
+                _context.Comparisons.Add(comparison);
+                await _context.SaveChangesAsync();
+
+                // Crear jobs para cada método
+                var jobs = new List<Job>();
+                var db = _redis.GetDatabase();
+
+                foreach (var metodo in request.Metodos)
+                {
+                    var parametros = CrearParametrosParaMetodo(metodo, request);
+
+                    var job = new Job
+                    {
+                        JobId = Guid.NewGuid().ToString(),
+                        Metodo = metodo,
+                        Estado = "PENDING",
+                        ParametrosJson = JsonSerializer.Serialize(parametros),
+                        ComparisonId = comparison.ComparisonId,
+                        CreadoEn = DateTime.UtcNow,
+                        ActualizadoEn = DateTime.UtcNow
+                    };
+
+                    _context.Jobs.Add(job);
+                    jobs.Add(job);
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Encolar jobs en Redis
+                foreach (var job in jobs)
+                {
+                    await db.ListRightPushAsync("job_queue", job.JobId);
+                    _logger.LogInformation("Job {JobId} encolado para comparación {ComparisonId}", job.JobId, comparison.ComparisonId);
+                }
+
+                _logger.LogInformation("Comparación {ComparisonId} creada con {Count} jobs",
+                    comparison.ComparisonId, jobs.Count);
+
+                return Ok(new CompareRootsResponseDTO
+                {
+                    ComparisonId = comparison.ComparisonId,
+                    Jobs = jobs.Select(j => new JobReferenceDTO { JobId = j.JobId, Metodo = j.Metodo }).ToList(),
+                    Message = "Comparación creada exitosamente"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear comparación");
+                return StatusCode(500, new { error = "Error interno al crear la comparación", details = ex.Message });
+            }
+        }
+
+        // GET api/compare/roots/{comparisonId}
+        [HttpGet("compare/roots/{comparisonId}")]
+        public async Task<IActionResult> GetComparisonResult(string comparisonId)
+        {
+            var comparison = await _context.Comparisons
+                .FirstOrDefaultAsync(c => c.ComparisonId == comparisonId);
+
+            if (comparison == null)
+                return NotFound(new { error = "Comparación no encontrada" });
+
+            var jobs = await _context.Jobs
+                .Where(j => j.ComparisonId == comparisonId)
+                .ToListAsync();
+
+            var metodosUsados = JsonSerializer.Deserialize<List<string>>(comparison.MetodosUsados) ?? new List<string>();
+
+            var resultados = new List<MethodResultDTO>();
+
+            foreach (var metodo in metodosUsados)
+            {
+                var job = jobs.FirstOrDefault(j => j.Metodo == metodo);
+                if (job != null)
+                {
+                    var iteraciones = await _context.JobIterations
+                        .Where(i => i.JobId == job.JobId)
+                        .OrderBy(i => i.Iteracion)
+                        .ToListAsync();
+
+                    resultados.Add(new MethodResultDTO
+                    {
+                        Metodo = metodo,
+                        JobId = job.JobId,
+                        Raiz = job.Resultado,
+                        Iteraciones = iteraciones.Count,
+                        ErrorFinal = job.Estado == "DONE" && job.ErrorMensaje == null && iteraciones.Any() ?
+                            (double?)iteraciones.Last().Error : null,
+                        Convergio = job.Converged == true,
+                        TiempoEjecucionMs = job.TiempoEjecucionMs,
+                        Estado = job.Estado,
+                        ErrorMensaje = job.ErrorMensaje
+                    });
+                }
+                else
+                {
+                    resultados.Add(new MethodResultDTO
+                    {
+                        Metodo = metodo,
+                        JobId = string.Empty,
+                        Convergio = false,
+                        Estado = "NOT_FOUND",
+                        ErrorMensaje = "Job no encontrado"
+                    });
+                }
+            }
+
+            var result = new ComparisonResultDTO
+            {
+                ComparisonId = comparison.ComparisonId,
+                ParametrosComunes = new ComparisonParamsDTO
+                {
+                    Funcion = comparison.Funcion,
+                    Tolerancia = comparison.Tolerancia,
+                    MaxIteraciones = comparison.MaxIteraciones
+                },
+                Resultados = resultados,
+                CreadoEn = comparison.CreadoEn
+            };
+
+            _logger.LogInformation("Resultado de comparación {ComparisonId} consultado", comparisonId);
+            return Ok(result);
+        }
+
+        // GET api/compare/history
+        [HttpGet("compare/history")]
+        public async Task<IActionResult> GetComparisonHistory()
+        {
+            try
+            {
+                var comparisons = await _context.Comparisons
+                    .OrderByDescending(c => c.CreadoEn)
+                    .Select(c => new
+                    {
+                        c.ComparisonId,
+                        c.Funcion,
+                        c.X0,
+                        c.X1,
+                        c.X2,
+                        c.Tolerancia,
+                        c.MaxIteraciones,
+                        c.MetodosUsados,
+                        c.CreadoEn,
+                        Jobs = _context.Jobs
+                            .Where(j => j.ComparisonId == c.ComparisonId)
+                            .Select(j => new
+                            {
+                                j.JobId,
+                                j.Metodo,
+                                j.Estado,
+                                j.Converged,
+                                j.Resultado,
+                                j.TiempoEjecucionMs
+                            })
+                            .ToList()
+                    })
+                    .ToListAsync();
+
+                _logger.LogInformation("Endpoint (GET api/compare/history) consumido - {Count} comparaciones encontradas", comparisons.Count);
+                return Ok(comparisons);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener historial de comparaciones");
+                return StatusCode(500, new { error = "Error al obtener el historial" });
+            }
+        }
+
+        // GET api/compare/history/{comparisonId}
+        [HttpGet("compare/history/{comparisonId}")]
+        public async Task<IActionResult> GetComparisonById(string comparisonId)
+        {
+            try
+            {
+                var comparison = await _context.Comparisons
+                    .Where(c => c.ComparisonId == comparisonId)
+                    .Select(c => new
+                    {
+                        c.ComparisonId,
+                        c.Funcion,
+                        c.X0,
+                        c.X1,
+                        c.X2,
+                        c.Tolerancia,
+                        c.MaxIteraciones,
+                        c.MetodosUsados,
+                        c.CreadoEn,
+                        Jobs = _context.Jobs
+                            .Where(j => j.ComparisonId == c.ComparisonId)
+                            .Select(j => new
+                            {
+                                j.JobId,
+                                j.Metodo,
+                                j.Estado,
+                                j.Converged,
+                                j.Resultado,
+                                j.TiempoEjecucionMs,
+                                j.ErrorMensaje
+                            })
+                            .ToList()
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (comparison == null)
+                {
+                    return NotFound(new { error = "Comparación no encontrada" });
+                }
+
+                _logger.LogInformation("Endpoint (GET api/compare/history/{ComparisonId}) consumido", comparisonId);
+                return Ok(comparison);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener comparación {ComparisonId}", comparisonId);
+                return StatusCode(500, new { error = "Error al obtener la comparación" });
+            }
+        }
+
+        // Método auxiliar para crear parámetros según el método
+        private Dictionary<string, object> CrearParametrosParaMetodo(string metodo, CompareRootsRequestDTO request)
+        {
+            var parametros = new Dictionary<string, object>
+            {
+                ["funcion"] = request.Funcion,
+                ["tolerancia"] = request.Tolerancia,
+                ["maxIteraciones"] = request.MaxIteraciones
+            };
+
+            switch (metodo)
+            {
+                case "newton":
+                    parametros["x0"] = request.X0;
+                    break;
+                case "secante":
+                    parametros["x0"] = request.X0;
+                    parametros["x1"] = request.X1;
+                    break;
+                case "muller":
+                    parametros["x0"] = request.X0;
+                    parametros["x1"] = request.X1;
+                    parametros["x2"] = request.X2;
+                    break;
+            }
+
+            return parametros;
+        }
+
+        // POST api/compare/matrices
+        [HttpPost("compare/matrices")]
+        public async Task<IActionResult> CompareMatrices([FromBody] CompareMatricesRequestDTO request)
+        {
+            try
+            {
+                // Validar matriz
+                if (string.IsNullOrWhiteSpace(request.Matrix))
+                    return BadRequest(new { error = "La matriz no puede estar vacía" });
+
+                // Validar formato básico
+                var rows = request.Matrix.Split(';');
+                if (rows.Length == 0 || rows.Length > 10)
+                    return BadRequest(new { error = "La matriz debe tener entre 1 y 10 filas" });
+
+                // Crear Comparison
+                var comparison = new Comparison
+                {
+                    ComparisonId = Guid.NewGuid().ToString(),
+                    Funcion = "", // No aplica para matrices
+                    X0 = null,
+                    X1 = null,
+                    X2 = null,
+                    Tolerancia = 0,
+                    MaxIteraciones = 0,
+                    MetodosUsados = JsonSerializer.Serialize(new[] { "gauss", "gaussJordan" }),
+                    Tipo = "matrices",  // Nuevo campo para distinguir
+                    CreadoEn = DateTime.UtcNow
+                };
+
+                _context.Comparisons.Add(comparison);
+                await _context.SaveChangesAsync();
+
+                // Crear jobs para Gauss y Gauss-Jordan
+                var jobs = new List<Job>();
+                var db = _redis.GetDatabase();
+                var metodos = new[] { "gauss", "gaussJordan" };
+
+                foreach (var metodo in metodos)
+                {
+                    var parametros = new Dictionary<string, object>
+                    {
+                        ["matrix"] = request.Matrix
+                    };
+
+                    var job = new Job
+                    {
+                        JobId = Guid.NewGuid().ToString(),
+                        Metodo = metodo,
+                        Estado = "PENDING",
+                        ParametrosJson = JsonSerializer.Serialize(parametros),
+                        ComparisonId = comparison.ComparisonId,
+                        CreadoEn = DateTime.UtcNow,
+                        ActualizadoEn = DateTime.UtcNow
+                    };
+
+                    _context.Jobs.Add(job);
+                    jobs.Add(job);
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Encolar jobs en Redis
+                foreach (var job in jobs)
+                {
+                    await db.ListRightPushAsync("job_queue", job.JobId);
+                    _logger.LogInformation("Job {JobId} encolado para comparación de matrices {ComparisonId}", job.JobId, comparison.ComparisonId);
+                }
+
+                _logger.LogInformation("Comparación de matrices {ComparisonId} creada con {Count} jobs",
+                    comparison.ComparisonId, jobs.Count);
+
+                return Ok(new MatrixComparisonResponseDTO
+                {
+                    ComparisonId = comparison.ComparisonId,
+                    Jobs = jobs.Select(j => new MatrixJobReferenceDTO { JobId = j.JobId, Metodo = j.Metodo }).ToList(),
+                    Message = "Comparación de matrices creada exitosamente"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al crear comparación de matrices");
+                return StatusCode(500, new { error = "Error interno al crear la comparación de matrices", details = ex.Message });
+            }
+        }
+
+        // GET api/compare/matrices/{comparisonId}
+        [HttpGet("compare/matrices/{comparisonId}")]
+        public async Task<IActionResult> GetMatrixComparison(string comparisonId)
+        {
+            try
+            {
+                var comparison = await _context.Comparisons
+                    .FirstOrDefaultAsync(c => c.ComparisonId == comparisonId && c.Tipo == "matrices");
+
+                if (comparison == null)
+                    return NotFound(new { error = "Comparación de matrices no encontrada" });
+
+                var jobs = await _context.Jobs
+                    .Where(j => j.ComparisonId == comparisonId)
+                    .ToListAsync();
+
+                var resultados = new List<MatrixMethodResultDTO>();
+
+                foreach (var job in jobs)
+                {
+                    var pasos = new List<MatrixStepDTO>();
+
+                    // Obtener iteraciones/pasos del job
+                    var iteraciones = await _context.JobIterations
+                        .Where(i => i.JobId == job.JobId)
+                        .OrderBy(i => i.Iteracion)
+                        .ToListAsync();
+
+                    foreach (var iter in iteraciones)
+                    {
+                        var paso = new MatrixStepDTO
+                        {
+                            Iteracion = iter.Iteracion
+                        };
+
+                        // Extraer información de DatosAdicionales
+                        if (!string.IsNullOrEmpty(iter.DatosAdicionales))
+                        {
+                            try
+                            {
+                                var datos = JsonSerializer.Deserialize<Dictionary<string, object>>(iter.DatosAdicionales);
+                                if (datos != null)
+                                {
+                                    paso.Descripcion = datos.GetValueOrDefault("descripcion")?.ToString();
+
+                                    if (datos.ContainsKey("matriz"))
+                                    {
+                                        var matrizObj = datos["matriz"];
+                                        paso.Matriz = JsonSerializer.Deserialize<double[][]>(JsonSerializer.Serialize(matrizObj));
+                                    }
+
+                                    if (datos.ContainsKey("factor") && datos["factor"] != null)
+                                    {
+                                        paso.Factor = Convert.ToDouble(datos["factor"]);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Error parseando DatosAdicionales para job {JobId}, iteración {Iteracion}", job.JobId, iter.Iteracion);
+                            }
+                        }
+
+                        pasos.Add(paso);
+                    }
+
+                    // Extraer solución del resultado
+                    string? solucion = null;
+                    if (job.Estado == "DONE" && !string.IsNullOrEmpty(job.Resultado))
+                    {
+                        try
+                        {
+                            var solucionArray = JsonSerializer.Deserialize<List<double>>(job.Resultado);
+                            if (solucionArray != null)
+                            {
+                                solucion = $"[{string.Join(", ", solucionArray)}]";
+                            }
+                            else
+                            {
+                                solucion = job.Resultado;
+                            }
+                        }
+                        catch
+                        {
+                            solucion = job.Resultado;
+                        }
+                    }
+
+                    resultados.Add(new MatrixMethodResultDTO
+                    {
+                        Metodo = job.Metodo,
+                        JobId = job.JobId,
+                        Solucion = solucion,
+                        NumeroPasos = pasos.Count,
+                        TiempoEjecucionMs = job.TiempoEjecucionMs,
+                        Convergio = job.Converged == true,
+                        Estado = job.Estado,
+                        ErrorMensaje = job.ErrorMensaje,
+                        Pasos = pasos
+                    });
+                }
+
+                var result = new MatrixComparisonResultDTO
+                {
+                    ComparisonId = comparison.ComparisonId,
+                    MatrizOriginal = jobs.FirstOrDefault()?.ParametrosJson != null ?
+                        (JsonSerializer.Deserialize<Dictionary<string, object>>(jobs.First().ParametrosJson)?.GetValueOrDefault("matrix")?.ToString() ?? "") : "",
+                    Resultados = resultados,
+                    CreadoEn = comparison.CreadoEn
+                };
+
+                _logger.LogInformation("Resultado de comparación de matrices {ComparisonId} consultado", comparisonId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener comparación de matrices {ComparisonId}", comparisonId);
+                return StatusCode(500, new { error = "Error al obtener la comparación de matrices" });
+            }
+        }
+
+        // GET api/compare/matrices/history
+        [HttpGet("compare/matrices/history")]
+        public async Task<IActionResult> GetMatrixComparisonHistory()
+        {
+            try
+            {
+                var comparisons = await _context.Comparisons
+                    .Where(c => c.Tipo == "matrices")
+                    .OrderByDescending(c => c.CreadoEn)
+                    .Select(c => new
+                    {
+                        c.ComparisonId,
+                        MatrizOriginal = "", // Se llenará después
+                        c.CreadoEn,
+                        Jobs = _context.Jobs
+                            .Where(j => j.ComparisonId == c.ComparisonId)
+                            .Select(j => new
+                            {
+                                j.JobId,
+                                j.Metodo,
+                                j.Estado,
+                                j.Converged,
+                                j.Resultado,
+                                j.TiempoEjecucionMs
+                            })
+                            .ToList()
+                    })
+                    .ToListAsync();
+
+                // Llenar MatrizOriginal para cada comparación
+                foreach (var comp in comparisons)
+                {
+                    var firstJob = comp.Jobs.FirstOrDefault();
+                    if (firstJob != null)
+                    {
+                        var jobEntity = await _context.Jobs
+                            .Where(j => j.JobId == firstJob.JobId)
+                            .Select(j => j.ParametrosJson)
+                            .FirstOrDefaultAsync();
+
+                        if (jobEntity != null)
+                        {
+                            var parametros = JsonSerializer.Deserialize<Dictionary<string, object>>(jobEntity);
+                            comp.GetType().GetProperty("MatrizOriginal")?.SetValue(comp,
+                                parametros?.GetValueOrDefault("matrix")?.ToString() ?? "");
+                        }
+                    }
+                }
+
+                _logger.LogInformation("Endpoint (GET api/compare/matrices/history) consumido - {Count} comparaciones encontradas", comparisons.Count);
+                return Ok(comparisons);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener historial de comparaciones de matrices");
+                return StatusCode(500, new { error = "Error al obtener el historial" });
+            }
+        }
     }
 
 }

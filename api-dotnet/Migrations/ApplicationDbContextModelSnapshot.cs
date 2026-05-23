@@ -22,6 +22,56 @@ namespace api_dotnet.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("api_dotnet.Models.Comparison", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ComparisonId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreadoEn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Funcion")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("MaxIteraciones")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MetodosUsados")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<double>("Tolerancia")
+                        .HasPrecision(18, 15)
+                        .HasColumnType("float(18)");
+
+                    b.Property<double?>("X0")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("X1")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("X2")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ComparisonId")
+                        .IsUnique();
+
+                    b.ToTable("Comparisons");
+                });
+
             modelBuilder.Entity("api_dotnet.Models.Job", b =>
                 {
                     b.Property<int>("Id")
@@ -32,6 +82,9 @@ namespace api_dotnet.Migrations
 
                     b.Property<DateTime>("ActualizadoEn")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("ComparisonId")
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<bool?>("Converged")
                         .HasColumnType("bit");
@@ -65,6 +118,8 @@ namespace api_dotnet.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ComparisonId");
 
                     b.ToTable("Jobs");
                 });
@@ -107,6 +162,17 @@ namespace api_dotnet.Migrations
                     b.ToTable("JobIterations");
                 });
 
+            modelBuilder.Entity("api_dotnet.Models.Job", b =>
+                {
+                    b.HasOne("api_dotnet.Models.Comparison", "Comparison")
+                        .WithMany("Jobs")
+                        .HasForeignKey("ComparisonId")
+                        .HasPrincipalKey("ComparisonId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Comparison");
+                });
+
             modelBuilder.Entity("api_dotnet.Models.JobIteration", b =>
                 {
                     b.HasOne("api_dotnet.Models.Job", "Job")
@@ -117,6 +183,11 @@ namespace api_dotnet.Migrations
                         .IsRequired();
 
                     b.Navigation("Job");
+                });
+
+            modelBuilder.Entity("api_dotnet.Models.Comparison", b =>
+                {
+                    b.Navigation("Jobs");
                 });
 #pragma warning restore 612, 618
         }

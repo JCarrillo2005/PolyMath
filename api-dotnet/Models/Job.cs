@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace api_dotnet.Models
 {
@@ -25,6 +26,13 @@ namespace api_dotnet.Models
         public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
 
         public DateTime ActualizadoEn { get; set; } = DateTime.UtcNow;
+
+        public string? ComparisonId { get; set; }
+
+       
+        [ForeignKey("ComparisonId")]
+        [JsonIgnore]
+        public virtual Comparison? Comparison { get; set; }
 
     }
 }

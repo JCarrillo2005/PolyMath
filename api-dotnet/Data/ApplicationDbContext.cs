@@ -12,6 +12,7 @@ namespace api_dotnet.Data
 
         public DbSet<Job> Jobs { get; set; }
         public DbSet<JobIteration> JobIterations { get; set; }
+        public DbSet<Comparison> Comparisons { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -27,6 +28,25 @@ namespace api_dotnet.Data
             modelBuilder.Entity<JobIteration>()
                 .Property(j => j.Error)
                 .HasPrecision(18, 15);
+
+            modelBuilder.Entity<Comparison>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.ComparisonId).IsUnique();
+                entity.Property(e => e.ComparisonId).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Funcion).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.MetodosUsados).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.Tolerancia).HasPrecision(18, 15);
+            });
+
+            modelBuilder.Entity<Job>(entity =>
+            {
+                entity.HasOne(j => j.Comparison)
+                      .WithMany(c => c.Jobs)
+                      .HasForeignKey(j => j.ComparisonId)
+                      .HasPrincipalKey(c => c.ComparisonId)
+                      .OnDelete(DeleteBehavior.SetNull);
+            });
         }
     }
 }
