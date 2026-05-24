@@ -137,10 +137,6 @@ export function CompareRoots() {
 
   // Estado del formulario (solo usado en modo creación)
   const [formData, setFormData] = useState({
-    funcion: "x**2 - 4",
-    x0: 3,
-    x1: 2.5,
-    x2: 2.8,
     tolerancia: 0.0001,
     maxIteraciones: 100,
     metodos: {
@@ -162,7 +158,48 @@ export function CompareRoots() {
       setStatus("polling");
       const savedComparison = await getComparisonById(id);
 
-      // Cargar iteraciones para cada job
+      // Cargar iteraciones y datos completos para cada job
+      const resultadosConDetalles = await Promise.all(
+        savedComparison.jobs.map(async (job) => {
+          let iteraciones = 0;
+          let errorFinal = null;
+
+          if (job.estado === "DONE" && job.jobId && job.converged) {
+            try {
+              const iterations = await getComparisonJobIterations(job.jobId);
+              if (Array.isArray(iterations) && iterations.length > 0) {
+                iteraciones = iterations.length;
+                // El error final es el error de la última iteración
+                const lastIteration = iterations[iterations.length - 1];
+                errorFinal =
+                  lastIteration.error !== undefined &&
+                  lastIteration.error !== null
+                    ? Number(lastIteration.error)
+                    : null;
+              }
+            } catch (err) {
+              console.error(
+                `Error cargando iteraciones de ${job.metodo}:`,
+                err,
+              );
+            }
+          }
+
+          return {
+            metodo: job.metodo,
+            jobId: job.jobId,
+            raiz: job.resultado,
+            iteraciones: iteraciones,
+            errorFinal: errorFinal,
+            convergio: job.converged,
+            tiempoEjecucionMs: job.tiempoEjecucionMs,
+            estado: job.estado,
+            errorMensaje: job.errorMensaje || null,
+          };
+        }),
+      );
+
+      // Cargar datos para la gráfica
       await loadIterationDataFromJobs(savedComparison.jobs);
 
       // Transformar a formato de resultado
@@ -173,17 +210,7 @@ export function CompareRoots() {
           tolerancia: savedComparison.tolerancia,
           maxIteraciones: savedComparison.maxIteraciones,
         },
-        resultados: savedComparison.jobs.map((job) => ({
-          metodo: job.metodo,
-          jobId: job.jobId,
-          raiz: job.resultado,
-          iteraciones: 0,
-          errorFinal: null,
-          convergio: job.converged,
-          tiempoEjecucionMs: job.tiempoEjecucionMs,
-          estado: job.estado,
-          errorMensaje: job.errorMensaje || null,
-        })),
+        resultados: resultadosConDetalles,
         creadoEn: savedComparison.creadoEn,
       };
 
@@ -195,7 +222,6 @@ export function CompareRoots() {
       setStatus("error");
     }
   };
-
   const loadIterationDataFromJobs = async (
     jobs: ComparisonHistoryItem["jobs"],
   ) => {
@@ -824,13 +850,23 @@ export function CompareRoots() {
                     </div>
                     <div>
                       <span className="text-gray-500">Comparison ID:</span>
-                      <code className="text-xs text-gray-500">
-                        {result.comparisonId.slice(0, 8)}...
-                      </code>
+                      <div className="flex items-center gap-2 mt-1">
+                        <code className="text-xs text-gray-500 break-all">
+                          {result.comparisonId}
+                        </code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(result.comparisonId);
+                          }}
+                          className="text-blue-500 hover:text-blue-700 text-sm px-2 py-1 bg-gray-100 rounded transition"
+                          title="Copiar ID completo"
+                        >
+                          Copiar
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-
                 <ComparisonChart data={chartData} />
 
                 <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">

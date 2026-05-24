@@ -5,6 +5,8 @@ import JobDetail from "./pages/JobDetail";
 import Stats from "./pages/Stats";
 import { CompareRoots } from "./pages/CompareRoots";
 import ComparisonHistory from "./pages/ComparisonHistory";
+import { CompareMatrices } from "./pages/CompareMatrices";
+import MatrixComparisonHistory from "./pages/MatrixComparisonHistory";
 
 function App() {
   return (
@@ -16,6 +18,15 @@ function App() {
       <Route path="/compare" element={<CompareRoots />} />
       <Route path="/compare/:comparisonId" element={<CompareRoots />} />
       <Route path="/compare/history" element={<ComparisonHistory />} />
+      <Route path="/compare-matrices" element={<CompareMatrices />} />
+      <Route
+        path="/compare-matrices/:comparisonId"
+        element={<CompareMatrices />}
+      />
+      <Route
+        path="/compare-matrices/history"
+        element={<MatrixComparisonHistory />}
+      />
     </Routes>
   );
 }

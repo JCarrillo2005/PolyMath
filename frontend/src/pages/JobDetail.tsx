@@ -50,6 +50,7 @@ export interface Iteracion {
   xi?: number | string;
   xn?: number;
   x?: number;
+  datosAdicionales?: string;
 }
 
 export interface DatosConvergencia {
@@ -427,6 +428,7 @@ function JobDetail() {
             (item, index) => ({
               ...item,
               iteracion: index + 1,
+              datosAdicionales: item.datosAdicionales,
             }),
           );
           setIterations(fixedIterations);
@@ -759,8 +761,121 @@ function JobDetail() {
                   </div>
                 )}
 
-                {/* Tabla de iteraciones para raíces */}
-                {iterations.length > 0 && (
+                {/* Tabla de iteraciones para Müller */}
+                {job.metodo === "muller" && iterations.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-700 mb-4">
+                      Tabla de iteraciones - Método de Müller
+                    </h3>
+                    <div className="overflow-x-auto rounded-xl border border-gray-200">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              Iter.
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              x₀
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              x₁
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              x₂
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              f(x₀)
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              f(x₁)
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              f(x₂)
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              x₃ (nueva raíz)
+                            </th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">
+                              εₐ (%)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {iterations.map((item, idx) => {
+                            // Intentar extraer los valores de DatosAdicionales
+                            let mullerData: any = {};
+                            if ((item as any).datosAdicionales) {
+                              try {
+                                mullerData = JSON.parse(
+                                  (item as any).datosAdicionales,
+                                );
+                              } catch (e) {}
+                            }
+
+                            const x0 = mullerData.x0 ?? "-";
+                            const x1 = mullerData.x1 ?? "-";
+                            const x2 = mullerData.x2 ?? "-";
+                            const fx0 = mullerData.fx0 ?? "-";
+                            const fx1 = mullerData.fx1 ?? "-";
+                            const fx2 = mullerData.fx2 ?? "-";
+                            const x3 =
+                              mullerData.x3 ?? formatComplexNumber(item.xi);
+                            const errorPorcentual =
+                              mullerData.error_porcentual !== undefined
+                                ? mullerData.error_porcentual.toFixed(4)
+                                : item.error !== undefined &&
+                                    item.error !== null
+                                  ? (item.error * 100).toFixed(4)
+                                  : "-";
+
+                            return (
+                              <tr
+                                key={idx}
+                                className="hover:bg-blue-50/30 transition-colors"
+                              >
+                                <td className="px-4 py-3 font-mono text-center">
+                                  {item.iteracion}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-center">
+                                  {formatComplexNumber(x0)}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-center">
+                                  {formatComplexNumber(x1)}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-center">
+                                  {formatComplexNumber(x2)}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-center">
+                                  {formatComplexNumber(fx0)}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-center">
+                                  {formatComplexNumber(fx1)}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-center">
+                                  {formatComplexNumber(fx2)}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-center font-bold text-blue-600">
+                                  {formatComplexNumber(x3)}
+                                </td>
+                                <td className="px-4 py-3 font-mono text-center">
+                                  {errorPorcentual !== "-"
+                                    ? `${errorPorcentual}%`
+                                    : "-"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      <p className="text-xs text-gray-400 text-right py-3 px-6 border-t border-gray-100">
+                        Total de iteraciones: {iterations.length}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tabla de iteraciones para Newton y Secante */}
+                {job.metodo !== "muller" && iterations.length > 0 && (
                   <div>
                     <h3 className="font-semibold text-gray-700 mb-4">
                       Tabla de iteraciones

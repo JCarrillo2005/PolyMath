@@ -187,7 +187,7 @@ function Home() {
         </div>
 
         {/* Tarjetas de acceso rápido */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Link
             to="/create"
             className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
@@ -211,17 +211,31 @@ function Home() {
               </div>
             </div>
           </Link>
+
           <Link
             to="/compare"
-            className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-90">Comparación</p>
-                <p className="text-xl font-bold">Métodos de Raices</p>
+                <p className="text-xl font-bold">Métodos de Raíces</p>
               </div>
             </div>
           </Link>
+
+          <Link
+            to="/compare-matrices"
+            className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Matrices</p>
+                <p className="text-xl font-bold">Gauss vs Jordan</p>
+              </div>
+            </div>
+          </Link>
+
           <Link
             to="/compare/history"
             className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
@@ -229,19 +243,22 @@ function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm opacity-90">Historial</p>
-                <p className="text-xl font-bold">Comparaciones</p>
+                <p className="text-xl font-bold">Raíces</p>
               </div>
             </div>
           </Link>
 
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-md">
+          <Link
+            to="/compare-matrices/history"
+            className="bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-xl p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm opacity-90">Total Jobs</p>
-                <p className="text-xl font-bold">{jobs.length} jobs</p>
+                <p className="text-sm opacity-90">Historial</p>
+                <p className="text-xl font-bold">Matrices</p>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* PANEL DE FILTROS */}
