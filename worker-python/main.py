@@ -139,6 +139,7 @@ def procesar_job(job_id: str):
         
         tiempo_ms = int((time.time() - start_time) * 1000)
         
+      
         # GUARDAR ITERACIONES
         if iteraciones:
             for it in iteraciones:
@@ -146,6 +147,20 @@ def procesar_job(job_id: str):
                 vector_x_value = it.get('vector_x')
                 error_value = it.get('error')
                 datos_adicionales = it.get('datos_adicionales')
+                
+                # Para método Müller, guardar campos adicionales en DatosAdicionales
+                if metodo == 'muller':
+                    datos_extra = {
+                        'x0': it.get('x0'),
+                        'x1': it.get('x1'),
+                        'x2': it.get('x2'),
+                        'fx0': it.get('fx0'),
+                        'fx1': it.get('fx1'),
+                        'fx2': it.get('fx2'),
+                        'x3': it.get('x3'),
+                        'error_porcentual': it.get('error_porcentual')
+                    }
+                    datos_adicionales = json.dumps(datos_extra)
                 
                 cursor.execute("""
                     INSERT INTO JobIterations (JobId, Iteracion, Xi, VectorX, Error, ErroresIndividuales, DatosAdicionales)
