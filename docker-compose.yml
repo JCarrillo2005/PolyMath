@@ -14,10 +14,10 @@ services:
     volumes:
       - sql_data:/var/opt/mssql
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Change_Me_123!" -Q "SELECT 1" || exit 1
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Change_Me_123!" -Q "SELECT 1" -C
       interval: 10s
-      timeout: 3s
-      retries: 10
+      timeout: 5s
+      retries: 5
 
   # Redis----------------------------------------------------------
   redis:
@@ -30,7 +30,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-
   # API .NET----------------------------------------------------------
   api-dotnet:
     build: ./api-dotnet/
