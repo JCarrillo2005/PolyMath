@@ -46,7 +46,14 @@ git clone https://github.com/JCarrillo2005/PolyMath.git
 cd PolyMath
 
 # 2. Configurar variables de entorno
+
+# Backend
 cp .env.example .env
+
+# Frontend
+cd frontend
+echo "VITE_API_BASE_URL=http://localhost:5000" > .env
+cd ..
 
 # 3. Levantar todos los servicios con un solo comando
 docker-compose up --build
@@ -55,3 +62,7 @@ docker-compose up --build
 #    - Frontend: http://localhost:5173
 #    - API Swagger: http://localhost:5000/swagger
 ```
+
+## Licencia y Contexto académico
+
+Proyecto desarrollado con fines académicos para el curso de Métodos Numéricos, Facultad de Ingeniería en Sistemas de Información, Universidad Mariano Gálvez de Guatemala (UMG). Prohibida su comercialización sin autorización de los autores.
